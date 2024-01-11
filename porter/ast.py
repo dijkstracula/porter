@@ -13,6 +13,7 @@ class Binding(Generic[T]):
     decl: T
 
 
+@dataclass
 class Position:
     filename: str
     line: int
@@ -20,7 +21,7 @@ class Position:
 
     @staticmethod
     def from_ivy(ivy_pos: iu.LocationTuple) -> "Position":
-        Position(ivy_pos[0], ivy_pos[1], ivy_pos.get(2))
+        return Position(ivy_pos[0], ivy_pos[1], ivy_pos.get(2))
 
 
 @dataclass

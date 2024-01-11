@@ -48,10 +48,10 @@ def binding_from_ivy_const(im: imod.Module, c: ilog.Const) -> ast.Binding[Sort]:
     return ast.Binding(name, sort)
 
 
-def strip_prefixes(pref: list[str], sep: str, s: str) -> str:
-    pref = sep.join(pref) + sep
-    if s.startswith(pref):
-        return s[len(pref):]
+def strip_prefixes(prefixes: list[str], sep: str, s: str) -> str:
+    prefix = sep.join(prefixes) + sep
+    if s.startswith(prefix):
+        return s[len(prefix):]
     return s
 
 
