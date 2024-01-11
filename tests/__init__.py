@@ -6,6 +6,7 @@ import io
 
 from typing import Tuple
 
+
 def isolate_boilerplate(contents: str) -> str:
     return "\n".join(["#lang ivy1.8",
                       "include numbers",

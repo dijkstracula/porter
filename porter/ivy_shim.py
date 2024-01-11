@@ -2,18 +2,16 @@ import logging
 import os
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Optional
 
 from ivy import ivy_art as iart
 from ivy import ivy_actions as iact
 from ivy import ivy_compiler as ic
 from ivy import ivy_isolate as iiso
-from ivy import ivy_logic as il
 from ivy import logic as ilog
 from ivy import ivy_module as imod
 
 from . import ast
-from .ast import Binding, Sort
+from .ast import Binding, sorts, terms
 
 
 def compile_progtext(path: Path) -> iart.AnalysisGraph:
@@ -24,13 +22,6 @@ def compile_progtext(path: Path) -> iart.AnalysisGraph:
         ic.ivy_load_file(f, create_isolate=False)
         iiso.create_isolate('this')
     os.chdir(cwd)
-
-    # Records
-
-    @dataclass
-    class Record:
-        fields: list[Binding[Sort]]
-
     return ic.ivy_new()
 
 
@@ -42,10 +33,10 @@ def handle_isolate(path: Path):
         pdb.set_trace()
 
 
-def binding_from_ivy_const(im: imod.Module, c: ilog.Const) -> ast.Binding[Sort]:
+def binding_from_ivy_const(im: imod.Module, c: ilog.Const) -> Binding[sorts.Sort]:
     name = c.name
     sort = sort_from_ivy(im, c.sort)
-    return ast.Binding(name, sort)
+    return Binding(name, sort)
 
 
 def strip_prefixes(prefixes: list[str], sep: str, s: str) -> str:
@@ -55,7 +46,7 @@ def strip_prefixes(prefixes: list[str], sep: str, s: str) -> str:
     return s
 
 
-def action_from_ivy(im: imod.Module, iaction: iact.Action) -> ast.ActionDefinition:
+def action_from_ivy(im: imod.Module, iaction: iact.Action) -> terms.ActionDefinition:
     formal_params = []
     for p in iaction.formal_params:
         binding = binding_from_ivy_const(im, p)
@@ -71,10 +62,10 @@ def action_from_ivy(im: imod.Module, iaction: iact.Action) -> ast.ActionDefiniti
     body = []
     for a in iaction.args:
         pass  # body.append(action_from_ivy(im, a))
-    return ast.ActionDefinition(formal_params, formal_returns, body)
+    return terms.ActionDefinition(formal_params, formal_returns, body)
 
 
-def record_from_ivy(im: imod.Module, name: str) -> ast.Record:
+def record_from_ivy(im: imod.Module, name: str) -> terms.Record:
     if name not in im.sort_destructors:
         raise Exception(f"is {name} the name of a class?")
 
@@ -85,7 +76,7 @@ def record_from_ivy(im: imod.Module, name: str) -> ast.Record:
     for c in im.sort_destructors[name]:
         f = binding_from_ivy_const(im, c)
         f.name = strip_prefixes([name], ".", f.name)
-        assert isinstance(f.decl, ast.FunctionSort)
+        assert isinstance(f.decl, sorts.Function)
         f.decl = f.decl.range
         fields.append(f)
 
@@ -97,26 +88,26 @@ def record_from_ivy(im: imod.Module, name: str) -> ast.Record:
         action = action_from_ivy(im, action)
         actions.append(Binding(action_name, action))
 
-    return ast.Record(fields, actions)
+    return terms.Record(fields, actions)
 
 
-def sort_from_ivy(im: imod.Module, sort) -> ast.Sort:
+def sort_from_ivy(im: imod.Module, sort) -> sorts.Sort:
     if hasattr(sort, "name"):
         name = sort.name
         if name == "bool":
-            return ast.BoolSort()
+            return sorts.Bool()
         if name == "int":
-            return ast.NumericSort.int_sort()
+            return sorts.Numeric.int_sort()
         if name == "nat":
-            return ast.NumericSort.nat_sort()
+            return sorts.Numeric.nat_sort()
         if isinstance(sort, ilog.UninterpretedSort):
-            return ast.UninterpretedSort(name)
+            return sorts.Uninterpreted(name)
     else:
         if isinstance(sort, ilog.EnumeratedSort):
             discriminants = [str(x) for x in sort.extension]
-            return ast.EnumSort(discriminants)
+            return sorts.Enum(discriminants)
         if isinstance(sort, ilog.FunctionSort):
             domain = [sort_from_ivy(im, s) for s in sort.domain]
             ret = sort_from_ivy(im, sort.range)
-            return ast.FunctionSort(domain, ret)
+            return sorts.Function(domain, ret)
     raise Exception(f"TODO {type(sort)}")

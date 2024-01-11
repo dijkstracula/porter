@@ -2,6 +2,7 @@ from ivy import logic as ilog
 from ivy import ivy_module as imod
 
 from porter import ast, ivy_shim
+from porter.ast import terms, sorts
 
 from . import compile_toplevel
 
@@ -39,17 +40,17 @@ class RecordTest(unittest.TestCase):
         self.assertTrue(fields[1].name == "foo.y")
 
         rec = ivy_shim.record_from_ivy(im, "foo")
-        assert isinstance(rec, ast.Record)
+        assert isinstance(rec, terms.Record)
 
         # Fields
         self.assertEqual(len(rec.fields), 2)
-        self.assertEqual(rec.fields[0], ast.Binding("x", ast.NumericSort.nat_sort()))
-        self.assertEqual(rec.fields[1], ast.Binding("y", ast.NumericSort.nat_sort()))
+        self.assertEqual(rec.fields[0], ast.Binding("x", sorts.Numeric.nat_sort()))
+        self.assertEqual(rec.fields[1], ast.Binding("y", sorts.Numeric.nat_sort()))
 
         # Actions
         self.assertEqual(len(rec.actions), 1)
         self.assertTrue(rec.actions[0].name, "sum")
-        self.assertEqual(type(rec.actions[0].decl), ast.ActionDefinition)
+        self.assertEqual(type(rec.actions[0].decl), terms.ActionDefinition)
         self.assertTrue(type(rec.actions[0].decl.formal_params[0].name), "self")
         self.assertTrue(type(rec.actions[0].decl.formal_returns[0].name), "z")
         pass

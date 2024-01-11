@@ -1,9 +1,10 @@
-from ivy import logic as ilog
-from ivy import ivy_module as imod
-
-from porter import ast, ivy_shim
-
 import unittest
+
+from ivy import ivy_module as imod
+from ivy import logic as ilog
+
+from porter import ivy_shim
+from porter.ast import Binding, sorts
 
 
 class BindingTests(unittest.TestCase):
@@ -11,4 +12,4 @@ class BindingTests(unittest.TestCase):
         c = ilog.Const("prm:V0", ilog.UninterpretedSort("nat"))
         with imod.Module() as im:
             sort = ivy_shim.binding_from_ivy_const(im, c)
-            self.assertEqual(sort, ast.Binding("prm:V0", ast.NumericSort.nat_sort()))
+            self.assertEqual(sort, Binding("prm:V0", sorts.Numeric.nat_sort()))
