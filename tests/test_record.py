@@ -1,6 +1,3 @@
-from ivy import logic as ilog
-from ivy import ivy_module as imod
-
 from porter import ast, ivy_shim
 from porter.ast import terms, sorts
 

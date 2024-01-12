@@ -46,7 +46,25 @@ def strip_prefixes(prefixes: list[str], sep: str, s: str) -> str:
     return s
 
 
-def action_from_ivy(im: imod.Module, iaction: iact.Action) -> terms.ActionDefinition:
+# Expression conversion
+
+def expr_from_apply(im: imod.Module, app: ilog.Apply) -> terms.Expr:
+    if app.func.name == "+":
+        lhs = expr_from_ivy(im, app.args[0])
+        rhs = expr_from_ivy(im, app.args[1])
+        return terms.BinOp(app, lhs, "+", rhs)
+    pass
+
+
+def expr_from_ivy(im: imod.Module, expr) -> terms.Expr:
+    if isinstance(expr, ilog.Apply):
+        return expr_from_apply(im, expr)
+
+
+# Action/statement conversion
+
+
+def action_def_from_ivy(im: imod.Module, iaction: iact.Action) -> terms.ActionDefinition:
     formal_params = []
     for p in iaction.formal_params:
         binding = binding_from_ivy_const(im, p)
@@ -62,7 +80,7 @@ def action_from_ivy(im: imod.Module, iaction: iact.Action) -> terms.ActionDefini
     body = []
     for a in iaction.args:
         pass  # body.append(action_from_ivy(im, a))
-    return terms.ActionDefinition(formal_params, formal_returns, body)
+    return terms.ActionDefinition(iaction, formal_params, formal_returns, body)
 
 
 def record_from_ivy(im: imod.Module, name: str) -> terms.Record:
@@ -85,10 +103,11 @@ def record_from_ivy(im: imod.Module, name: str) -> terms.Record:
         if not action_name.startswith(name):
             continue
         action_name = strip_prefixes([name], ".", action_name)
-        action = action_from_ivy(im, action)
+        action = action_def_from_ivy(im, action)
         actions.append(Binding(action_name, action))
 
-    return terms.Record(fields, actions)
+    # TODO: What's a good ivy ast to pass in here?
+    return terms.Record(None, fields, actions)
 
 
 def sort_from_ivy(im: imod.Module, sort) -> sorts.Sort:
