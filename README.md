@@ -1,6 +1,6 @@
 # Porter
 
-Opinionated Ivy protocol translator
+Lightweight Ivy protocol translator
 
 Porter lifts Ivy protocols into a minimal AST intended for extraction to various
 language backends. Porter performs minimal syntax transformation and so the AST
@@ -35,4 +35,13 @@ so, [follow this guide](https://www.cs.utexas.edu/~ntaylor/blog/ivy-venv-python3
 >>> ivy.z3.get_version()
 (4, 7, 1, 0)
 >>> ^D
+```
+
+## Development
+
+Porter uses pytest for unit tests and pyright for typechecking.
+
+```commandline
+poetry run pytest
+poetry run pyright
 ```

@@ -45,3 +45,28 @@ class ExprTest(unittest.TestCase):
 
         expr = expr_from_ivy(im, compiled)
         self.assertTrue(isinstance(expr, terms.BinOp))
+        self.assertTrue(isinstance(expr.lhs, terms.Constant))
+        self.assertTrue(isinstance(expr.rhs, terms.Constant))
+
+    def test_boolean_const(self):
+        expr = "true"
+        im, compiled = self.compile_annotated_expr("bool", expr)
+        self.assertTrue(isinstance(compiled, ilog.And))
+        self.assertEqual(len(compiled.clauses), 0)
+
+        expr = expr_from_ivy(im, compiled)
+        self.assertTrue(isinstance(expr, terms.Constant))
+
+    def test_boolean_binop(self):
+        expr = "false & true & true & false"
+        im, compiled = self.compile_annotated_expr("bool", expr)
+        self.assertTrue(isinstance(compiled, ilog.And))
+        self.assertEqual(len(compiled.args), 4)
+
+        expr = expr_from_ivy(im, compiled)
+        self.assertTrue(isinstance(expr, terms.BinOp))
+        self.assertEqual(expr.sort(), sorts.Bool())
+        self.assertEqual(expr.op, "and")
+        self.assertTrue(isinstance(expr.lhs, terms.BinOp))
+        self.assertTrue(isinstance(expr.rhs, terms.Constant))
+        pass

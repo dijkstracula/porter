@@ -6,6 +6,7 @@ from typing import Any, Generic, Optional, TypeVar
 
 from . import Binding, Position
 
+from . import sorts
 from .sorts import Sort
 
 
@@ -21,6 +22,14 @@ class AST:
         if not isinstance(self.ivy_node.lineno, iu.LocationTuple):
             raise Exception(f"What is a lineno?  It's a {type(self.ivy_node.lineno)} as opposed to an iu.LocationTuple")
         return Position.from_ivy(self.ivy_node.lineno)
+
+    def sort(self) -> Optional[Sort]:
+        if self.ivy_node is None:
+            return None
+        if not hasattr(self.ivy_node, 'sort'):
+            raise Exception(f"Missing sort for {self.ivy_node}")
+        return sorts.from_ivy(self.ivy_node)
+
 
 
 @dataclass

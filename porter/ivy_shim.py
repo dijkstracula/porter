@@ -1,6 +1,5 @@
 import logging
 import os
-from dataclasses import dataclass
 from pathlib import Path
 
 from ivy import ivy_art as iart
@@ -33,9 +32,9 @@ def handle_isolate(path: Path):
         pdb.set_trace()
 
 
-def binding_from_ivy_const(im: imod.Module, c: ilog.Const) -> Binding[sorts.Sort]:
+def binding_from_ivy_const(c: ilog.Const) -> Binding[sorts.Sort]:
     name = c.name
-    sort = sort_from_ivy(im, c.sort)
+    sort = sorts.from_ivy(c.sort)
     return Binding(name, sort)
 
 
@@ -56,9 +55,41 @@ def expr_from_apply(im: imod.Module, app: ilog.Apply) -> terms.Expr:
     pass
 
 
+def expr_from_const(im: imod.Module, c: ilog.Const) -> terms.Constant:
+    return terms.Constant(c, c.name)
+
+
+def expr_from_or(im: imod.Module, expr: ilog.Or) -> terms.Expr:
+    if len(expr.terms) == 0:
+        return terms.Constant(expr, "false")
+    else:
+        lhs = expr_from_ivy(im, expr.terms[0])
+        for r in expr.terms[1:]:
+            rhs = expr_from_ivy(im, r)
+            lhs = terms.BinOp(r, lhs, "or", rhs)
+        return lhs
+
+
+def expr_from_and(im: imod.Module, expr: ilog.And) -> terms.Expr:
+    if len(expr.terms) == 0:
+        return terms.Constant(expr, "true")
+    else:
+        lhs = expr_from_ivy(im, expr.terms[0])
+        for r in expr.terms[1:]:
+            rhs = expr_from_ivy(im, r)
+            lhs = terms.BinOp(r, lhs, "and", rhs)
+        return lhs
+
+
 def expr_from_ivy(im: imod.Module, expr) -> terms.Expr:
+    if isinstance(expr, ilog.Const):
+        return expr_from_const(im, expr)
     if isinstance(expr, ilog.Apply):
         return expr_from_apply(im, expr)
+    if isinstance(expr, ilog.And):
+        return expr_from_and(im, expr)
+    if isinstance(expr, ilog.Or):
+        return expr_from_or(im, expr)
 
 
 # Action/statement conversion
@@ -67,13 +98,13 @@ def expr_from_ivy(im: imod.Module, expr) -> terms.Expr:
 def action_def_from_ivy(im: imod.Module, iaction: iact.Action) -> terms.ActionDefinition:
     formal_params = []
     for p in iaction.formal_params:
-        binding = binding_from_ivy_const(im, p)
+        binding = binding_from_ivy_const(p)
         binding.name = strip_prefixes(["fml"], ":", binding.name)
         formal_params.append(binding)
 
     formal_returns = []
     for p in iaction.formal_returns:
-        binding = binding_from_ivy_const(im, p)
+        binding = binding_from_ivy_const(p)
         binding.name = strip_prefixes(["fml"], ":", binding.name)
         formal_returns.append(binding)
 
@@ -92,7 +123,7 @@ def record_from_ivy(im: imod.Module, name: str) -> terms.Record:
 
     fields = []
     for c in im.sort_destructors[name]:
-        f = binding_from_ivy_const(im, c)
+        f = binding_from_ivy_const(c)
         f.name = strip_prefixes([name], ".", f.name)
         assert isinstance(f.decl, sorts.Function)
         f.decl = f.decl.range
@@ -108,25 +139,3 @@ def record_from_ivy(im: imod.Module, name: str) -> terms.Record:
 
     # TODO: What's a good ivy ast to pass in here?
     return terms.Record(None, fields, actions)
-
-
-def sort_from_ivy(im: imod.Module, sort) -> sorts.Sort:
-    if hasattr(sort, "name"):
-        name = sort.name
-        if name == "bool":
-            return sorts.Bool()
-        if name == "int":
-            return sorts.Numeric.int_sort()
-        if name == "nat":
-            return sorts.Numeric.nat_sort()
-        if isinstance(sort, ilog.UninterpretedSort):
-            return sorts.Uninterpreted(name)
-    else:
-        if isinstance(sort, ilog.EnumeratedSort):
-            discriminants = [str(x) for x in sort.extension]
-            return sorts.Enum(discriminants)
-        if isinstance(sort, ilog.FunctionSort):
-            domain = [sort_from_ivy(im, s) for s in sort.domain]
-            ret = sort_from_ivy(im, sort.range)
-            return sorts.Function(domain, ret)
-    raise Exception(f"TODO {type(sort)}")
