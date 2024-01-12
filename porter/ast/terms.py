@@ -31,16 +31,9 @@ class AST:
         return sorts.from_ivy(self.ivy_node)
 
 
-
-@dataclass
-class ActionDefinition(AST):
-    formal_params: list[Binding[Sort]]
-    formal_returns: list[Binding[Sort]]
-    body: list[Any]  # TODO
-
-
 #
 class Expr(AST):
+    # TODO: what should the relationship between an Expr and a Formula be?
     pass
 
 
@@ -56,13 +49,20 @@ class BinOp(Expr):
     rhs: Expr
 
 
+@dataclass
+class Apply(Expr):
+    # TODO: should this instead be called Atom?
+    relsym: str
+    args: list[Expr]
+
+
 #
 
 
 @dataclass
 class Record(AST):
     fields: list[Binding[Sort]]
-    actions: list[Binding[ActionDefinition]]
+    actions: list[Binding["ActionDefinition"]]
 
 
 #
@@ -80,6 +80,12 @@ class Assert(Action):
 @dataclass
 class Assume(Action):
     pred: Expr
+
+
+@dataclass
+class Call(Action):
+    pass
+
 
 
 @dataclass
@@ -120,3 +126,10 @@ class While(Action):
 class Let(Action):
     vardecls: list[Binding[Sort]]
     scope: Action
+
+
+@dataclass
+class ActionDefinition(AST):
+    formal_params: list[Binding[Sort]]
+    formal_returns: list[Binding[Sort]]
+    body: list[Action]

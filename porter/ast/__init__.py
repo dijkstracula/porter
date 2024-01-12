@@ -21,4 +21,4 @@ class Position:
 
     @staticmethod
     def from_ivy(ivy_pos: iu.LocationTuple) -> "Position":
-        return Position(ivy_pos[0], ivy_pos[1], ivy_pos.get(2))
+        return Position(ivy_pos[0] or "<stdin>", ivy_pos[1], ivy_pos.get(2))

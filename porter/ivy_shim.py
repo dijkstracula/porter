@@ -2,8 +2,9 @@ import logging
 import os
 from pathlib import Path
 
-from ivy import ivy_art as iart
 from ivy import ivy_actions as iact
+from ivy import ivy_art as iart
+from ivy import ivy_ast as iast
 from ivy import ivy_compiler as ic
 from ivy import ivy_isolate as iiso
 from ivy import logic as ilog
@@ -52,7 +53,9 @@ def expr_from_apply(im: imod.Module, app: ilog.Apply) -> terms.Expr:
         lhs = expr_from_ivy(im, app.args[0])
         rhs = expr_from_ivy(im, app.args[1])
         return terms.BinOp(app, lhs, "+", rhs)
-    pass
+    func = expr_from_ivy(im, app.args[0])
+    args = [expr_from_ivy(im, a) for a in app.args[1:]]
+    terms.Apply(func, args)
 
 
 def expr_from_const(im: imod.Module, c: ilog.Const) -> terms.Constant:
@@ -80,12 +83,18 @@ def expr_from_and(im: imod.Module, expr: ilog.And) -> terms.Expr:
             lhs = terms.BinOp(r, lhs, "and", rhs)
         return lhs
 
+def expr_from_atom(im: imod.Module, expr: iast.Atom) -> terms.Apply:
+    relsym = expr.rep
+    args = [expr_from_ivy(im, a) for a in expr.args]
+    return terms.Apply(expr, relsym, args)
 
 def expr_from_ivy(im: imod.Module, expr) -> terms.Expr:
-    if isinstance(expr, ilog.Const):
-        return expr_from_const(im, expr)
     if isinstance(expr, ilog.Apply):
         return expr_from_apply(im, expr)
+    if isinstance(expr, iast.Atom):
+        return expr_from_atom(im, expr)
+    if isinstance(expr, ilog.Const):
+        return expr_from_const(im, expr)
     if isinstance(expr, ilog.And):
         return expr_from_and(im, expr)
     if isinstance(expr, ilog.Or):
@@ -112,6 +121,14 @@ def action_def_from_ivy(im: imod.Module, iaction: iact.Action) -> terms.ActionDe
     for a in iaction.args:
         pass  # body.append(action_from_ivy(im, a))
     return terms.ActionDefinition(iaction, formal_params, formal_returns, body)
+
+
+def action_from_ivy(im: imod.Module, act: iact.Action) -> terms.Action:
+    if isinstance(act, iact.CallAction):
+        pass
+    if isinstance(act, iact.Sequence):
+        return terms.Sequence(act, [action_from_ivy(a) for a in act.args])
+    raise Exception(f"TODO: {type(act)}")
 
 
 def record_from_ivy(im: imod.Module, name: str) -> terms.Record:

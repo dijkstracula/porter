@@ -1,8 +1,9 @@
 from ivy import ivy_actions as iact
+from ivy import ivy_ast as iast
 from ivy import ivy_module as imod
 from ivy import logic as ilog
 
-from . import compile_toplevel
+from . import compile_toplevel, extract_after_init
 from typing import Any, Tuple
 
 from porter.ast import terms, sorts
@@ -21,11 +22,7 @@ class ExprTest(unittest.TestCase):
                 }}"""
         (im, _) = compile_toplevel(init_act)
 
-        action_body = im.initial_actions[0]
-        self.assertTrue(isinstance(action_body, iact.LocalAction))
-        action_stmts = action_body.args[1]  # "let test_expr := ... in { let ensure... in ... }"
-        self.assertTrue(isinstance(action_stmts, iact.Sequence))
-        test_expr_assign = action_stmts.args[0]
+        test_expr_assign = extract_after_init(im).args[0]
         self.assertTrue(isinstance(test_expr_assign, iact.AssignAction))
         assign_rhs = test_expr_assign.args[1]
         return im, assign_rhs
@@ -44,15 +41,24 @@ class ExprTest(unittest.TestCase):
         self.assertTrue(isinstance(compiled, ilog.Apply))
 
         expr = expr_from_ivy(im, compiled)
-        self.assertTrue(isinstance(expr, terms.BinOp))
+        assert isinstance(expr, terms.BinOp)
         self.assertTrue(isinstance(expr.lhs, terms.Constant))
         self.assertTrue(isinstance(expr.rhs, terms.Constant))
 
-    def test_boolean_const(self):
+    def test_boolean_true(self):
         expr = "true"
         im, compiled = self.compile_annotated_expr("bool", expr)
         self.assertTrue(isinstance(compiled, ilog.And))
-        self.assertEqual(len(compiled.clauses), 0)
+        self.assertEqual(len(compiled.args), 0)
+
+        expr = expr_from_ivy(im, compiled)
+        self.assertTrue(isinstance(expr, terms.Constant))
+
+    def test_boolean_false(self):
+        expr = "false"
+        im, compiled = self.compile_annotated_expr("bool", expr)
+        self.assertTrue(isinstance(compiled, ilog.Or))
+        self.assertEqual(len(compiled.args), 0)
 
         expr = expr_from_ivy(im, compiled)
         self.assertTrue(isinstance(expr, terms.Constant))
@@ -64,9 +70,15 @@ class ExprTest(unittest.TestCase):
         self.assertEqual(len(compiled.args), 4)
 
         expr = expr_from_ivy(im, compiled)
-        self.assertTrue(isinstance(expr, terms.BinOp))
+        assert isinstance(expr, terms.BinOp)
         self.assertEqual(expr.sort(), sorts.Bool())
         self.assertEqual(expr.op, "and")
         self.assertTrue(isinstance(expr.lhs, terms.BinOp))
         self.assertTrue(isinstance(expr.rhs, terms.Constant))
         pass
+
+    def test_atom(self):
+        ivy_expr = iast.Atom("inc", ilog.Const("42", ilog.UninterpretedSort("nat")))
+        expr = expr_from_ivy(imod.Module, ivy_expr)
+        assert isinstance(expr, terms.Apply)
+        self.assertEquals(expr.relsym, "inc")
