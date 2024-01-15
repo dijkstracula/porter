@@ -54,8 +54,9 @@ def expr_from_apply(im: imod.Module, app: ilog.Apply) -> terms.Expr:
         rhs = expr_from_ivy(im, app.args[1])
         return terms.BinOp(app, lhs, "+", rhs)
     func = expr_from_ivy(im, app.args[0])
+    assert isinstance(func, terms.Constant)
     args = [expr_from_ivy(im, a) for a in app.args[1:]]
-    terms.Apply(func, args)
+    return terms.Apply(app, func, args)
 
 
 def expr_from_const(im: imod.Module, c: ilog.Const) -> terms.Constant:
@@ -83,10 +84,12 @@ def expr_from_and(im: imod.Module, expr: ilog.And) -> terms.Expr:
             lhs = terms.BinOp(r, lhs, "and", rhs)
         return lhs
 
+
 def expr_from_atom(im: imod.Module, expr: iast.Atom) -> terms.Apply:
     relsym = expr.rep
     args = [expr_from_ivy(im, a) for a in expr.args]
     return terms.Apply(expr, relsym, args)
+
 
 def expr_from_ivy(im: imod.Module, expr) -> terms.Expr:
     if isinstance(expr, ilog.Apply):
@@ -99,6 +102,7 @@ def expr_from_ivy(im: imod.Module, expr) -> terms.Expr:
         return expr_from_and(im, expr)
     if isinstance(expr, ilog.Or):
         return expr_from_or(im, expr)
+    raise Exception(f"TODO: {expr}")
 
 
 # Action/statement conversion
@@ -117,17 +121,50 @@ def action_def_from_ivy(im: imod.Module, iaction: iact.Action) -> terms.ActionDe
         binding.name = strip_prefixes(["fml"], ":", binding.name)
         formal_returns.append(binding)
 
-    body = []
-    for a in iaction.args:
-        pass  # body.append(action_from_ivy(im, a))
+    body = action_from_ivy(im, iaction)
     return terms.ActionDefinition(iaction, formal_params, formal_returns, body)
 
 
+def assign_action_from_ivy(im: imod.Module, iaction: iact.AssignAction) -> terms.Assign:
+    lhs = expr_from_ivy(im, iaction.args[0])
+    rhs = expr_from_ivy(im, iaction.args[1])
+    return terms.Assign(iaction, lhs, rhs)
+
+
+def call_action_from_ivy(im: imod.Module, iaction: iact.CallAction) -> terms.Action:
+    assert isinstance(iaction.args[0], iast.Atom)  # Application expression
+    call_action = terms.Call(iaction, expr_from_atom(im, iaction.args[0]))
+    if len(iaction.args) == 2:
+        # TODO: multiple return values probably aren't constants?  Or do we have
+        # more args in the iaction?
+        assert isinstance(iaction.args[1], ilog.Const)  # return temporary
+        temp = binding_from_ivy_const(iaction.args[1])
+        return terms.Let(iaction, [temp], call_action)
+    else:
+        assert len(iaction.args) == 1
+        return call_action
+
+
+def local_action_from_ivy(im: imod.Module, iaction: iact.LocalAction) -> terms.Let:
+    assert isinstance(iaction.args[0], ilog.Const)  # Binding name
+    varname = binding_from_ivy_const(iaction.args[0])
+    assert isinstance(iaction.args[1], iact.Action)
+    act = action_from_ivy(im, iaction.args[1])
+    return terms.Let(im, [varname], act)
+
+
 def action_from_ivy(im: imod.Module, act: iact.Action) -> terms.Action:
+    if isinstance(act, iact.AssignAction):
+        return assign_action_from_ivy(im, act)
+    if isinstance(act, iact.LocalAction):
+        return local_action_from_ivy(im, act)
     if isinstance(act, iact.CallAction):
-        pass
+        return call_action_from_ivy(im, act)
     if isinstance(act, iact.Sequence):
-        return terms.Sequence(act, [action_from_ivy(a) for a in act.args])
+        subacts = [action_from_ivy(im, a) for a in act.args]
+        if len(subacts) == 1:
+            return subacts[0]
+        return terms.Sequence(act, subacts)
     raise Exception(f"TODO: {type(act)}")
 
 

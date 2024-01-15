@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from ivy import ivy_utils as iu
 
@@ -12,23 +12,23 @@ from .sorts import Sort
 
 @dataclass
 class AST:
-    ivy_node: Optional[Any]
+    _ivy_node: Optional[Any] = field(repr=False)
 
     def pos(self) -> Optional[Position]:
-        if self.ivy_node is None:
+        if self._ivy_node is None:
             return None
-        if not hasattr(self.ivy_node, 'lineno'):
+        if not hasattr(self._ivy_node, 'lineno'):
             return None
-        if not isinstance(self.ivy_node.lineno, iu.LocationTuple):
-            raise Exception(f"What is a lineno?  It's a {type(self.ivy_node.lineno)} as opposed to an iu.LocationTuple")
-        return Position.from_ivy(self.ivy_node.lineno)
+        if not isinstance(self._ivy_node.lineno, iu.LocationTuple):
+            raise Exception(f"What is a lineno?  It's a {type(self._ivy_node.lineno)} as opposed to an iu.LocationTuple")
+        return Position.from_ivy(self._ivy_node.lineno)
 
     def sort(self) -> Optional[Sort]:
-        if self.ivy_node is None:
+        if self._ivy_node is None:
             return None
-        if not hasattr(self.ivy_node, 'sort'):
-            raise Exception(f"Missing sort for {self.ivy_node}")
-        return sorts.from_ivy(self.ivy_node)
+        if not hasattr(self._ivy_node, 'sort'):
+            raise Exception(f"Missing sort for {self._ivy_node}")
+        return sorts.from_ivy(self._ivy_node)
 
 
 #
@@ -52,7 +52,7 @@ class BinOp(Expr):
 @dataclass
 class Apply(Expr):
     # TODO: should this instead be called Atom?
-    relsym: str
+    relsym: Constant
     args: list[Expr]
 
 
@@ -84,8 +84,7 @@ class Assume(Action):
 
 @dataclass
 class Call(Action):
-    pass
-
+    app: Apply
 
 
 @dataclass
@@ -132,4 +131,4 @@ class Let(Action):
 class ActionDefinition(AST):
     formal_params: list[Binding[Sort]]
     formal_returns: list[Binding[Sort]]
-    body: list[Action]
+    body: Action

@@ -15,11 +15,11 @@ in order to install its dependencies.
 ```
 $ curl -sSL https://install.python-poetry.org | python3 -
 $ poetry shell
-(yesand-py3.11) $ poetry install
+(porter-py3.11) $ poetry install
 Updating dependencies
 [...]
 Installing the current project: porter (0.1.0)
-(yesand-py3.11) $
+(porter-py3.11) $
 ```
 
 Next, Install the python3 fork of Ivy. The `ms-ivy` package is not explicitly a dependency because we may wish to
