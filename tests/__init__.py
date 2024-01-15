@@ -1,10 +1,11 @@
+import os
+
 from ivy import ivy_actions as iact
 from ivy import ivy_compiler as ic
 from ivy import ivy_module as imod
 from ivy import ivy_isolate as iiso
 
 import io
-
 from typing import Tuple
 
 
@@ -26,8 +27,10 @@ def compile_toplevel(tl: str) -> Tuple[imod.Module, ic.AnalysisGraph]:
     return compile_ivy(isolate_boilerplate(tl))
 
 
-def compile_ivy(file: str) -> Tuple[imod.Module, ic.AnalysisGraph]:
+def compile_ivy(file) -> Tuple[imod.Module, ic.AnalysisGraph]:
     with imod.Module() as im:
-        ic.ivy_load_file(io.StringIO(file), create_isolate=False)
+        if isinstance(file, str):
+            file = io.StringIO(file)
+        ic.ivy_load_file(file, create_isolate=False)
         iiso.create_isolate('this')
         return im, ic.ivy_new()

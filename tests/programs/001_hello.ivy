@@ -1,0 +1,18 @@
+#lang ivy1.8
+
+include numbers
+
+process greeter = {
+    var hello_id: nat
+
+    export action doit
+    import action out(val: nat)
+
+    after init {
+        hello_id := 42;
+    }
+
+    implement doit {
+        out(hello_id);
+    }
+}
