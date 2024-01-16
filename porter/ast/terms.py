@@ -144,6 +144,7 @@ class If(Action):
 @dataclass
 class While(Action):
     test: Expr
+    decreases: Optional[Expr]
     do: Action
 
 

@@ -123,16 +123,17 @@ def expr_from_forall(im: imod.Module, fmla: ilog.Exists) -> terms.Forall:
 
 
 def expr_from_ivy(im: imod.Module, expr) -> terms.Expr:
-    if isinstance(expr, ilog.Apply):
-        return expr_from_apply(im, expr)
-    if isinstance(expr, iast.Atom):
-        return expr_from_atom(im, expr)
-
+    # Terminals
     if isinstance(expr, ilog.Const):
         return expr_from_const(im, expr)
     if isinstance(expr, ilog.Var):
         return expr_from_var(im, expr)
 
+    # Application
+    if isinstance(expr, ilog.Apply):
+        return expr_from_apply(im, expr)
+
+    # Binops
     if isinstance(expr, ilog.And):
         return expr_from_and(im, expr)
     if isinstance(expr, ilog.Or):
@@ -141,9 +142,14 @@ def expr_from_ivy(im: imod.Module, expr) -> terms.Expr:
         return expr_from_implies(im, expr)
     if isinstance(expr, ilog.Eq):
         return expr_from_eq(im, expr)
+
+    # Unary ops
     if isinstance(expr, ilog.Not):
         return expr_from_not(im, expr)
 
+    # Logic
+    if isinstance(expr, iast.Atom):
+        return expr_from_atom(im, expr)
     if isinstance(expr, ilog.Exists):
         return expr_from_exists(im, expr)
     if isinstance(expr, ilog.ForAll):
