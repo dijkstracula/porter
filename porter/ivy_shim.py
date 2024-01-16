@@ -108,7 +108,15 @@ def expr_from_ivy(im: imod.Module, expr) -> terms.Expr:
 # Action/statement conversion
 
 
-def action_def_from_ivy(im: imod.Module, iaction: iact.Action) -> terms.ActionDefinition:
+def action_kind_from_action_name(name: str) -> terms.ActionKind:
+    if name.startswith("ext:"):
+        return terms.ActionKind.EXPORTED
+    if name.startswith("imp"):
+        return terms.ActionKind.IMPORTED
+    return terms.ActionKind.NORMAL
+
+
+def action_def_from_ivy(im: imod.Module, name: str, iaction: iact.Action) -> terms.ActionDefinition:
     formal_params = []
     for p in iaction.formal_params:
         binding = binding_from_ivy_const(p)
@@ -122,7 +130,9 @@ def action_def_from_ivy(im: imod.Module, iaction: iact.Action) -> terms.ActionDe
         formal_returns.append(binding)
 
     body = action_from_ivy(im, iaction)
-    return terms.ActionDefinition(iaction, formal_params, formal_returns, body)
+    kind = action_kind_from_action_name(name)
+
+    return terms.ActionDefinition(iaction, kind, formal_params, formal_returns, body)
 
 
 def assign_action_from_ivy(im: imod.Module, iaction: iact.AssignAction) -> terms.Assign:
@@ -188,8 +198,18 @@ def record_from_ivy(im: imod.Module, name: str) -> terms.Record:
         if not action_name.startswith(name):
             continue
         action_name = strip_prefixes([name], ".", action_name)
-        action = action_def_from_ivy(im, action)
+        action = action_def_from_ivy(im, action_name, action)
         actions.append(Binding(action_name, action))
 
     # TODO: What's a good ivy ast to pass in here?
     return terms.Record(None, fields, actions)
+
+
+def program_from_ivy(im: imod.Module) -> terms.Program:
+    porter_sorts = [sorts.from_ivy(s) for s in im.sort_destructors]
+    individuals = [binding_from_ivy_const(sym) for name, sym in im.sig.symbols.items()]
+    inits = [action_from_ivy(im, a) for a in im.initial_actions]
+    actions = [Binding(name, action_def_from_ivy(im, name, a)) for name, a in im.actions.items()]
+
+    # TODO: What's a good ivy ast to pass in here?
+    return terms.Program(None, porter_sorts, individuals, inits, actions)

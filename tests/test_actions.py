@@ -27,7 +27,7 @@ class ExprTest(unittest.TestCase):
     def test_inc_action(self):
         action = "action inc(n: nat) returns (m: nat) = { m := n + 1 }"
         im, compiled = compile_action("inc", action)
-        act = action_def_from_ivy(im, compiled)
+        act = action_def_from_ivy(im, "inc", compiled)
         self.assertEqual(act.formal_params, [porter.ast.Binding("n", sorts.Numeric.nat_sort())])
         self.assertEqual(act.formal_returns, [porter.ast.Binding("m", sorts.Numeric.nat_sort())])
 

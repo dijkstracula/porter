@@ -1,4 +1,5 @@
 from dataclasses import dataclass, field
+from enum import Enum
 
 from ivy import ivy_utils as iu
 
@@ -20,7 +21,8 @@ class AST:
         if not hasattr(self._ivy_node, 'lineno'):
             return None
         if not isinstance(self._ivy_node.lineno, iu.LocationTuple):
-            raise Exception(f"What is a lineno?  It's a {type(self._ivy_node.lineno)} as opposed to an iu.LocationTuple")
+            raise Exception(
+                f"What is a lineno?  It's a {type(self._ivy_node.lineno)} as opposed to an iu.LocationTuple")
         return Position.from_ivy(self._ivy_node.lineno)
 
     def sort(self) -> Optional[Sort]:
@@ -127,8 +129,20 @@ class Let(Action):
     scope: Action
 
 
+ActionKind = Enum("ActionKind", ["NORMAL", "EXPORTED", "IMPORTED"])
+
+
 @dataclass
 class ActionDefinition(AST):
+    kind: ActionKind
     formal_params: list[Binding[Sort]]
     formal_returns: list[Binding[Sort]]
     body: Action
+
+
+@dataclass
+class Program(AST):
+    sorts: list[Sort]
+    individuals: list[Binding[Sort]]
+    inits: list[Action]
+    actions: list[Binding[ActionDefinition]]
