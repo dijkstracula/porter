@@ -64,6 +64,18 @@ class Apply(Expr):
     args: list[Expr]
 
 
+@dataclass
+class Exists(Expr):
+    vars: list[Binding[Sort]]
+    expr: Expr
+
+
+@dataclass
+class Forall(Expr):
+    vars: list[Binding[Sort]]
+    expr: Expr
+
+
 #
 
 
@@ -93,6 +105,12 @@ class Assume(Action):
 @dataclass
 class Call(Action):
     app: Apply
+
+
+@dataclass
+class Debug(Action):
+    msg: str
+    args: list[Binding[Expr]]
 
 
 @dataclass

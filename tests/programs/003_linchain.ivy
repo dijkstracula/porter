@@ -1,0 +1,611 @@
+#lang ivy1.8
+
+# Here is an attempt at a l;inearizable version of chain replication.
+
+include numbers
+include network
+include collections
+
+
+global {
+
+    # Up to now, we have assumed that each replica has a local client
+    # in the same process space. Now we're going to have separate
+    # clinet and server processes.  For this reason, we hagve two
+    # types of process id: `client_id` and `server_id`.
+
+    instance client_id : iterable
+    instance server_id : iterable
+
+    # Our file datatype is the same as before:
+    
+    alias byte = uint[8]
+    instance file : vector(byte)
+}
+
+# We create a parameterized collection of client processes.
+
+process client (self:client_id) = {
+
+    # The append/show interface is the same as in our previous
+    # linearizable chain protocol without failures:
+
+    export action append_req(val:byte)
+    import action append_rsp
+    export action show_req
+    import action show_rsp(content:file)
+    
+    # This is our linearizability spec
+
+    common {
+
+        specification {
+
+            # The specification contains a "ghost" action `commit`.
+            # Calling this action marks the commit point of a pending
+            # transaction of process `self`.
+
+            action commit(self:client_id)
+
+            # This enumerated type tells us whether a pending transaction
+            # is an append or a show.
+
+            type op_kind = {append_kind,show_kind}
+
+            # Here are the specification state variables. The variable
+            # `st` stores the current commited state of the file. That
+            # is `st` is the result of applying all the committed
+            # 'append' operations.
+
+            var st : file
+
+            # For each process, we use these variables to keep track
+            # of the status of the current transaction of process `X`,
+            # if any.
+            
+            var pending(X:client_id) : bool           # a transaction is pending
+            var pending_kind(X:client_id) : op_kind   # kind of the pending transaction
+            var pending_append(X:client_id) : byte    # value to append, if any
+            var pending_show(X:client_id) : file      # value to show, if any
+            var committed(X:client_id) : bool         # is this transaction committed?
+
+            # Initially, there are no pending or committed transactions.
+
+            after init {
+                pending(X) := false;
+                committed(X) := false;
+            }
+
+            # Specification of `append_req`
+            #
+            # To start an append transaction, a process must have no
+            # current transaction. In other words, ech process must
+            # execution operations sequentially. When we start a
+            # transaction, we mark it pending, and record the kind and
+            # the input, if any.
+
+            before append_req(self:client_id,val:byte) {
+                require ~pending(self);
+                pending(self) := true;
+                pending_kind(self) := append_kind;
+                pending_append(self) := val;
+            }
+
+            # Specification of `append_rsp`
+            #
+            # For the server to respond to a transaction, it must be
+            # pending, and of the right type, and committed. The last
+            # requirement means that a transaction must commit
+            # *during* its execution, a requirement for
+            # linearizability (though not for sequential consistency).
+            # When the server responds, we mark the transaction no
+            # longer pending or committed, allowing the client to
+            # start a new transaction.
+            
+            before append_rsp(self:client_id) {
+                require pending(self) & pending_kind(self) = append_kind & committed(self);
+                pending(self) := false;
+                committed(self) := false;
+            }
+
+            # Specification of `show_req`
+            #
+            # This is similar to `append_req`, except the show request
+            # has no input to record.
+
+            before show_req(self:client_id) {
+                require ~pending(self);
+                pending(self) := true;
+                pending_kind(self) := show_kind;
+            }
+
+            # Specification of `show_req`
+            #
+            # This is similar to `append_req`, except the show has
+            # output.  Thus, we require that the `content` provided by
+            # the server is equal to the correct value `pending_show`
+            # recorded at the commit point (see below).
+
+            before show_rsp(self:client_id,content:file) {
+                require pending(self) & pending_kind(self) = show_kind & committed(self);
+                require content = pending_show(self);
+                pending(self) := false;
+                committed(self) := false;
+            }
+
+            # Specification of `commit`
+            #
+            # This is a "ghost" action that must be called by the
+            # implementation at the commit point of each transaction
+            # (it is "ghost" because it has no implementation).  To
+            # commit a transaction, it must be pending but not yet
+            # committed. In case of an 'append', we perform the update
+            # on the committed state `st`, using the recorded value of
+            # the input. In case of a 'show', we record the correct
+            # output (in this case the committed state). Finally, we
+            # mark the transaction committed.
+
+            before commit {
+                debug "commit" with self = self, self2 = self;
+                require pending(self) & ~committed(self);
+                if pending_kind(self) = append_kind {
+                    st := st.append(pending_append(self));
+                } else {
+                    pending_show(self) := st;
+                }
+                committed(self) := true;
+            }
+        }        
+    }
+
+    # Here is the implementation:
+    
+    implementation {
+
+        common {
+
+            # Clients and servers communicate with each other using
+            # the following message kinds:
+
+            type msg_kind = {
+                append_req_kind,    # append request
+                append_rsp_kind,    # append response
+                show_req_kind,      # show request
+                show_rsp_kind      # show response
+            }
+
+            # Here is the message class for client-server messages
+
+            class msg_t = {
+                field kind : msg_kind          # message kind
+                field val : byte               # byte to append (if any)
+                field contents : file          # file contents (if any)
+                field src_client : client_id   # requesting client id
+            }
+
+            # Overlay for client-server messages
+
+            instance net : tcp.net(msg_t)
+            
+
+            # The clients share a parameterized collection of `server`
+            # processes, each of which contains a replica of the
+            # shared file.
+
+            process server(self:server_id) = {
+
+                # Each server process has a socket on the
+                # client-server overlay.
+
+                instance sock : net.socket
+
+                # The state of a server consists of te file contents.
+                    
+                var contents : file            # the file replica
+                
+                # Notice here the intial primary and secondary are
+                # 0,1, as in the manager.
+
+                after init {
+                    contents := file.empty;
+                }
+                
+                # Implementation of message receipt on the client-server network.
+
+                implement sock.recv(src:tcp.endpoint,msg:msg_t) {
+                    debug "recv" with self = self, msg = msg;
+
+                    # If we get an append request do it and pass it on.
+                    # If we are last in the chain, respond to the client. In addition, if
+                    # we are secondary, we 'commit' the operation with
+                    # a ghost call.
+                        
+                    if msg.kind = append_req_kind {
+                        contents := contents.append(msg.val);
+                        if self < server_id.max {
+                            sock.send(server(self.next).sock.id,msg);
+                        }
+                        else {
+                            debug "committing" with client = msg.src_client, server = self, kind = msg.kind;
+                            commit(msg.src_client);
+                            msg.kind := append_rsp_kind;
+                            sock.send(client(msg.src_client).sock.id,msg);  # respond to client
+                        }
+                    } else if msg.kind = show_req_kind {
+
+                        # We only handle show requests in the last replica. We respond to the
+                        # client with a `show_rsp` messages and our current contents. We
+                        # also commit the operation. 
+
+                        debug "committing" with client = msg.src_client, server = self, kind = msg.kind;
+                        commit(msg.src_client);
+                        msg.kind := show_rsp_kind;
+                        msg.contents := contents;
+                        sock.send(client(msg.src_client).sock.id,msg);
+                    } 
+                }
+
+            }
+        }
+
+
+        # Now that we've defined the the server processes, we
+        # implement the client.  The client has a socket on the
+        # client-server overlay.
+
+        instance sock : net.socket
+
+        # When the client gets an append request, it sends an append
+        # request messages to the first replica.
+
+        implement append_req {
+            var msg : msg_t;
+            msg.kind := append_req_kind;
+            msg.src_client := self;
+            msg.val := val;
+            sock.send(server(0).sock.id, msg);
+        }
+
+        # When the client gets a show request, it sends a show request
+        # message to the last replica.
+
+        implement show_req {
+            var msg : msg_t;
+            msg.kind := show_req_kind;
+            msg.src_client := self;
+            sock.send(server(server_id.max).sock.id, msg);
+        }
+
+        # When the client gets an `append_rsp` message, it creates an
+        # `append_rsp` event (handled by the environment). Similarly,
+        # when it gets a `show_rsp` message it creats a `show_rsp`
+        # event.
+
+        implement sock.recv(src:tcp.endpoint,msg:msg_t) {
+            if msg.kind = append_rsp_kind {
+                append_rsp;
+            } else if msg.kind = show_rsp_kind {
+                show_rsp(msg.contents);
+            }
+        }
+    }
+}
+
+# Now that we've fixed the ghost 'commit' sequence so that commits are not lost
+# when the secondary fails, let's test again for linearizability.
+#
+#     $ ivyc target=test append_fail5.ivy
+#     $ for run in {1..100}
+#     >     do ivy_launch server_id.max=2 client_id.max=1 seed=$run append_fail5
+#     > done
+#
+# When I ran this, I got an assertion violation on run 61:
+#
+#     > client.append_req(1,220)
+#     > client.manager.timer.timeout
+#     {
+#         "event" : "tick",
+#         "time" : 0,
+#         "primary" : 0,
+#         "secondary" : 0,
+#         "backup" : 0,
+#     }
+#     {
+#         "event" : "recv",
+#         "prm:V0" : 0,
+#         "msg" : {kind:append_req_kind,val:220,contents:[],src_client:1},
+#     }
+#     {
+#         "event" : "recv",
+#         "prm:V0" : 1,
+#         "msg" : {kind:append_req_kind,val:220,contents:[],src_client:1},
+#     }
+#     {
+#         "event" : "committing",
+#         "client" : 1,
+#         "server" : 1,
+#         "kind" : append_req_kind,
+#     }
+#     {
+#         "event" : "commit",
+#         "self" : 1,
+#     }
+#     < client.append_rsp(1)
+#     > client.server.timer.timeout(0)
+#     > client.append_req(0,13)
+#     > client.manager.timer.timeout
+#     {
+#         "event" : "tick",
+#         "time" : 1,
+#         "primary" : 1,
+#         "secondary" : 0,
+#         "backup" : 0,
+#     }
+#     {
+#         "event" : "recv",
+#         "prm:V0" : 0,
+#         "msg" : {kind:append_req_kind,val:13,contents:[],src_client:0},
+#     }
+#     {
+#         "event" : "recv",
+#         "prm:V0" : 1,
+#         "msg" : {kind:append_req_kind,val:13,contents:[],src_client:0},
+#     }
+#     {
+#         "event" : "committing",
+#         "client" : 0,
+#         "server" : 1,
+#         "kind" : append_req_kind,
+#     }
+#     {
+#         "event" : "commit",
+#         "self" : 0,
+#     }
+#     < client.append_rsp(0)
+#     > client.server.timer.timeout(1)
+#     > client.server.timer.timeout(1)
+#     > client.manager.timer.timeout
+#     {
+#         "event" : "tick",
+#         "time" : 2,
+#         "primary" : 1,
+#         "secondary" : 2,
+#         "backup" : 0,
+#     }
+#     > client.manager.timer.timeout
+#     {
+#         "event" : "tick",
+#         "time" : 3,
+#         "primary" : 1,
+#         "secondary" : 2,
+#         "backup" : 0,
+#     }
+#     {
+#         "event" : "primary failed",
+#     }
+#     > client.show_req(1)
+#     {
+#         "event" : "recv",
+#         "prm:V0" : 1,
+#         "msg" : {kind:show_req_kind,val:0,contents:[],src_client:1},
+#     }
+#     {
+#         "event" : "committing",
+#         "client" : 1,
+#         "server" : 1,
+#         "kind" : show_req_kind,
+#     }
+#     {
+#         "event" : "commit",
+#         "self" : 1,
+#     }
+#     < client.show_rsp(1,[220,13])
+#     > client.append_req(1,200)
+#     {
+#         "event" : "recv",
+#         "prm:V0" : 0,
+#         "msg" : {kind:append_req_kind,val:200,contents:[],src_client:1},
+#     }
+#     {
+#         "event" : "recv",
+#         "prm:V0" : 1,
+#         "msg" : {kind:append_req_kind,val:200,contents:[],src_client:1},
+#     }
+#     {
+#         "event" : "committing",
+#         "client" : 1,
+#         "server" : 1,
+#         "kind" : append_req_kind,
+#     }
+#     {
+#         "event" : "commit",
+#         "self" : 1,
+#     }
+#     < client.append_rsp(1)
+#     > client.append_req(1,227)
+#     {
+#         "event" : "recv",
+#         "prm:V0" : 0,
+#         "msg" : {kind:append_req_kind,val:227,contents:[],src_client:1},
+#     }
+#     {
+#         "event" : "recv",
+#         "prm:V0" : 1,
+#         "msg" : {kind:append_req_kind,val:227,contents:[],src_client:1},
+#     }
+#     {
+#         "event" : "committing",
+#         "client" : 1,
+#         "server" : 1,
+#         "kind" : append_req_kind,
+#     }
+#     {
+#         "event" : "commit",
+#         "self" : 1,
+#     }
+#     < client.append_rsp(1)
+#     > client.append_req(0,29)
+#     {
+#         "event" : "recv",
+#         "prm:V0" : 0,
+#         "msg" : {kind:append_req_kind,val:29,contents:[],src_client:0},
+#     }
+#     {
+#         "event" : "recv",
+#         "prm:V0" : 1,
+#         "msg" : {kind:append_req_kind,val:29,contents:[],src_client:0},
+#     }
+#     {
+#         "event" : "committing",
+#         "client" : 0,
+#         "server" : 1,
+#         "kind" : append_req_kind,
+#     }
+#     {
+#         "event" : "commit",
+#         "self" : 0,
+#     }
+#     < client.append_rsp(0)
+#     > client.server.timer.timeout(0)
+#     > client.append_req(1,247)
+#     {
+#         "event" : "recv",
+#         "prm:V0" : 0,
+#         "msg" : {kind:append_req_kind,val:247,contents:[],src_client:1},
+#     }
+#     {
+#         "event" : "recv",
+#         "prm:V0" : 1,
+#         "msg" : {kind:append_req_kind,val:247,contents:[],src_client:1},
+#     }
+#     {
+#         "event" : "committing",
+#         "client" : 1,
+#         "server" : 1,
+#         "kind" : append_req_kind,
+#     }
+#     {
+#         "event" : "commit",
+#         "self" : 1,
+#     }
+#     < client.append_rsp(1)
+#     > client.server.timer.timeout(2)
+#     > client.server.timer.timeout(0)
+#     > client.append_req(1,143)
+#     {
+#         "event" : "recv",
+#         "prm:V0" : 0,
+#         "msg" : {kind:append_req_kind,val:143,contents:[],src_client:1},
+#     }
+#     {
+#         "event" : "recv",
+#         "prm:V0" : 1,
+#         "msg" : {kind:append_req_kind,val:143,contents:[],src_client:1},
+#     }
+#     {
+#         "event" : "committing",
+#         "client" : 1,
+#         "server" : 1,
+#         "kind" : append_req_kind,
+#     }
+#     {
+#         "event" : "commit",
+#         "self" : 1,
+#     }
+#     < client.append_rsp(1)
+#     > client.append_req(1,178)
+#     {
+#         "event" : "recv",
+#         "prm:V0" : 0,
+#         "msg" : {kind:append_req_kind,val:178,contents:[],src_client:1},
+#     }
+#     {
+#         "event" : "recv",
+#         "prm:V0" : 1,
+#         "msg" : {kind:append_req_kind,val:178,contents:[],src_client:1},
+#     }
+#     {
+#         "event" : "committing",
+#         "client" : 1,
+#         "server" : 1,
+#         "kind" : append_req_kind,
+#     }
+#     {
+#         "event" : "commit",
+#         "self" : 1,
+#     }
+#     < client.append_rsp(1)
+#     > client.show_req(1)
+#     {
+#         "event" : "recv",
+#         "prm:V0" : 1,
+#         "msg" : {kind:show_req_kind,val:0,contents:[],src_client:1},
+#     }
+#     {
+#         "event" : "committing",
+#         "client" : 1,
+#         "server" : 1,
+#         "kind" : show_req_kind,
+#     }
+#     {
+#         "event" : "commit",
+#         "self" : 1,
+#     }
+#     < client.show_rsp(1,[220,13,200,227,29,247,143,178])
+#     > client.append_req(1,210)
+#     > client.append_req(0,184)
+#     {
+#         "event" : "recv",
+#         "prm:V0" : 0,
+#         "msg" : {kind:append_req_kind,val:210,contents:[],src_client:1},
+#     }
+#     > client.manager.timer.timeout
+#     {
+#         "event" : "tick",
+#         "time" : 4,
+#         "primary" : 4,
+#         "secondary" : 2,
+#         "backup" : 4,
+#     }
+#     {
+#         "event" : "secondary failed",
+#     }
+#     {
+#         "event" : "secondary failover",
+#         "new_primary" : 0,
+#         "new_secondary" : 2,
+#     }
+#     {
+#         "event" : "commit",
+#         "self" : 1,
+#     }
+#     {
+#         "event" : "recv",
+#         "prm:V0" : 1,
+#         "msg" : {kind:append_req_kind,val:210,contents:[],src_client:1},
+#     }
+#     {
+#         "event" : "committing",
+#         "client" : 1,
+#         "server" : 1,
+#         "kind" : append_req_kind,
+#     }
+#     {
+#         "event" : "commit",
+#         "self" : 1,
+#     }
+#     assertion_failed("append_fail5.ivy: line 133")
+#     append_fail5.ivy: line 133: error: assertion failed
+#
+#
+# At the end, we can see that the secondary failed and the serialized
+# but uncommitted append of client 1 was committed as a result. The, however,
+# the old secondary came back to life and committed the operation again,
+# violating this requirement on commitment:
+#
+#     require pending(self) & ~committed(self);
+#
+# This is a real problem that we can't fix by fiddling with the commit
+# times.  That is, if the secondary comes back to life, it can issue
+# bogus responses.  We simply have to assume that the secondary won't
+# come back to life, which we'll do in the next version.

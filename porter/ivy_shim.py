@@ -64,6 +64,12 @@ def expr_from_var(im: imod.Module, v: ilog.Var) -> terms.Constant:
     return terms.Constant(v, v.name)
 
 
+def expr_from_atom(im: imod.Module, expr: iast.Atom) -> terms.Apply:
+    relsym = expr.rep
+    args = [expr_from_ivy(im, a) for a in expr.args]
+    return terms.Apply(expr, relsym, args)
+
+
 def expr_from_or(im: imod.Module, expr: ilog.Or) -> terms.Expr:
     if len(expr.terms) == 0:
         return terms.Constant(expr, "false")
@@ -104,10 +110,16 @@ def expr_from_and(im: imod.Module, expr: ilog.And) -> terms.Expr:
         return lhs
 
 
-def expr_from_atom(im: imod.Module, expr: iast.Atom) -> terms.Apply:
-    relsym = expr.rep
-    args = [expr_from_ivy(im, a) for a in expr.args]
-    return terms.Apply(expr, relsym, args)
+def expr_from_exists(im: imod.Module, fmla: ilog.Exists) -> terms.Exists:
+    variables = [binding_from_ivy_const(c) for c in fmla.variables]
+    body = expr_from_ivy(im, fmla.body)
+    return terms.Exists(fmla, variables, body)
+
+
+def expr_from_forall(im: imod.Module, fmla: ilog.Exists) -> terms.Forall:
+    variables = [binding_from_ivy_const(c) for c in fmla.variables]
+    body = expr_from_ivy(im, fmla.body)
+    return terms.Forall(fmla, variables, body)
 
 
 def expr_from_ivy(im: imod.Module, expr) -> terms.Expr:
@@ -115,10 +127,12 @@ def expr_from_ivy(im: imod.Module, expr) -> terms.Expr:
         return expr_from_apply(im, expr)
     if isinstance(expr, iast.Atom):
         return expr_from_atom(im, expr)
+
     if isinstance(expr, ilog.Const):
         return expr_from_const(im, expr)
     if isinstance(expr, ilog.Var):
         return expr_from_var(im, expr)
+
     if isinstance(expr, ilog.And):
         return expr_from_and(im, expr)
     if isinstance(expr, ilog.Or):
@@ -129,6 +143,12 @@ def expr_from_ivy(im: imod.Module, expr) -> terms.Expr:
         return expr_from_eq(im, expr)
     if isinstance(expr, ilog.Not):
         return expr_from_not(im, expr)
+
+    if isinstance(expr, ilog.Exists):
+        return expr_from_exists(im, expr)
+    if isinstance(expr, ilog.ForAll):
+        return expr_from_forall(im, expr)
+
     raise Exception(f"TODO: {expr}")
 
 
@@ -141,6 +161,16 @@ def action_kind_from_action_name(name: str) -> terms.ActionKind:
     if name.startswith("imp"):
         return terms.ActionKind.IMPORTED
     return terms.ActionKind.NORMAL
+
+
+def if_from_ivy(im: imod.Module, iaction: iact.IfAction) -> terms.If:
+    cond = expr_from_ivy(im, iaction.args[0])
+    then = action_from_ivy(im, iaction.args[1])
+    if len(iaction.args) > 2:
+        els = action_from_ivy(im, iaction.args[2])
+    else:
+        els = None
+    return terms.If(iaction, cond, then, els)
 
 
 def action_def_from_ivy(im: imod.Module, name: str, iaction: iact.Action) -> terms.ActionDefinition:
@@ -160,6 +190,11 @@ def action_def_from_ivy(im: imod.Module, name: str, iaction: iact.Action) -> ter
     kind = action_kind_from_action_name(name)
 
     return terms.ActionDefinition(iaction, kind, formal_params, formal_returns, body)
+
+
+def assert_action_from_ivy(im: imod.Module, iaction: iact.AssumeAction) -> terms.Assert:
+    pred = expr_from_ivy(im, iaction.args[0])
+    return terms.Assert(im, pred)
 
 
 def assign_action_from_ivy(im: imod.Module, iaction: iact.AssignAction) -> terms.Assign:
@@ -187,6 +222,12 @@ def call_action_from_ivy(im: imod.Module, iaction: iact.CallAction) -> terms.Act
         return call_action
 
 
+def debug_action_from_ivy(im: imod.Module, iaction: iact.DebugAction) -> terms.Debug:
+    msg = repr(iaction.args[0])
+    args = [Binding(di.args[0], expr_from_ivy(im, di.args[1])) for di in iaction.args[1:]]
+    return terms.Debug(iaction, msg, args)
+
+
 def local_action_from_ivy(im: imod.Module, iaction: iact.LocalAction) -> terms.Let:
     assert isinstance(iaction.args[0], ilog.Const)  # Binding name
     varname = binding_from_ivy_const(iaction.args[0])
@@ -196,21 +237,30 @@ def local_action_from_ivy(im: imod.Module, iaction: iact.LocalAction) -> terms.L
 
 
 def action_from_ivy(im: imod.Module, act: iact.Action) -> terms.Action:
+    if isinstance(act, iact.IfAction):
+        return if_from_ivy(im, act)
+
     if isinstance(act, iact.AssignAction):
         return assign_action_from_ivy(im, act)
     if isinstance(act, iact.AssumeAction):
         return assume_action_from_ivy(im, act)
-    if isinstance(act, iact.LocalAction):
-        return local_action_from_ivy(im, act)
+    if isinstance(act, iact.AssertAction):
+        return assert_action_from_ivy(im, act)
     if isinstance(act, iact.CallAction):
         return call_action_from_ivy(im, act)
+    if isinstance(act, iact.DebugAction):
+        return debug_action_from_ivy(im, act)
+    if isinstance(act, iact.LocalAction):
+        return local_action_from_ivy(im, act)
     if isinstance(act, iact.Sequence):
         subacts = [action_from_ivy(im, a) for a in act.args]
         if len(subacts) == 1:
             return subacts[0]
         return terms.Sequence(act, subacts)
+
     if isinstance(act, iact.HavocAction):
-        return None # XXX: Hole
+        return None  # XXX: Hole
+
     raise Exception(f"TODO: {type(act)}")
 
 
