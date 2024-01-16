@@ -29,8 +29,6 @@ def handle_isolate(path: Path):
     with imod.Module() as im:
         ag = compile_progtext(path)
         print(im.sort_destructors)
-        import pdb;
-        pdb.set_trace()
 
 
 def binding_from_ivy_const(c: ilog.Const) -> Binding[sorts.Sort]:
@@ -49,18 +47,21 @@ def strip_prefixes(prefixes: list[str], sep: str, s: str) -> str:
 # Expression conversion
 
 def expr_from_apply(im: imod.Module, app: ilog.Apply) -> terms.Expr:
-    if app.func.name == "+":
+    if app.func.name in ['+', "<=", "<", ">", ">="]:
         lhs = expr_from_ivy(im, app.args[0])
         rhs = expr_from_ivy(im, app.args[1])
-        return terms.BinOp(app, lhs, "+", rhs)
+        return terms.BinOp(app, lhs, app.func.name, rhs)
     func = expr_from_ivy(im, app.args[0])
-    assert isinstance(func, terms.Constant)
     args = [expr_from_ivy(im, a) for a in app.args[1:]]
     return terms.Apply(app, func, args)
 
 
 def expr_from_const(im: imod.Module, c: ilog.Const) -> terms.Constant:
     return terms.Constant(c, c.name)
+
+
+def expr_from_var(im: imod.Module, v: ilog.Var) -> terms.Constant:
+    return terms.Constant(v, v.name)
 
 
 def expr_from_or(im: imod.Module, expr: ilog.Or) -> terms.Expr:
@@ -72,6 +73,24 @@ def expr_from_or(im: imod.Module, expr: ilog.Or) -> terms.Expr:
             rhs = expr_from_ivy(im, r)
             lhs = terms.BinOp(r, lhs, "or", rhs)
         return lhs
+
+
+def expr_from_implies(im: imod.Module, expr: ilog.Implies) -> terms.Expr:
+    assert len(expr.args) == 2
+    lhs = expr_from_ivy(im, expr.args[0])
+    rhs = expr_from_ivy(im, expr.args[1])
+    return terms.BinOp(expr, lhs, "implies", rhs)
+
+
+def expr_from_eq(im: imod.Module, expr: ilog.Eq) -> terms.Expr:
+    lhs = expr_from_ivy(im, expr.t1)
+    rhs = expr_from_ivy(im, expr.t2)
+    return terms.BinOp(expr, lhs, "==", rhs)
+
+
+def expr_from_not(im: imod.Module, expr: ilog.Not) -> terms.Expr:
+    lhs = expr_from_ivy(im, expr.args[0])
+    return terms.UnOp(expr, "-", lhs)
 
 
 def expr_from_and(im: imod.Module, expr: ilog.And) -> terms.Expr:
@@ -98,10 +117,18 @@ def expr_from_ivy(im: imod.Module, expr) -> terms.Expr:
         return expr_from_atom(im, expr)
     if isinstance(expr, ilog.Const):
         return expr_from_const(im, expr)
+    if isinstance(expr, ilog.Var):
+        return expr_from_var(im, expr)
     if isinstance(expr, ilog.And):
         return expr_from_and(im, expr)
     if isinstance(expr, ilog.Or):
         return expr_from_or(im, expr)
+    if isinstance(expr, ilog.Implies):
+        return expr_from_implies(im, expr)
+    if isinstance(expr, ilog.Eq):
+        return expr_from_eq(im, expr)
+    if isinstance(expr, ilog.Not):
+        return expr_from_not(im, expr)
     raise Exception(f"TODO: {expr}")
 
 
@@ -141,16 +168,21 @@ def assign_action_from_ivy(im: imod.Module, iaction: iact.AssignAction) -> terms
     return terms.Assign(iaction, lhs, rhs)
 
 
+def assume_action_from_ivy(im: imod.Module, iaction: iact.AssumeAction) -> terms.Assume:
+    pred = expr_from_ivy(im, iaction.args[0])
+    return terms.Assume(im, pred)
+
+
 def call_action_from_ivy(im: imod.Module, iaction: iact.CallAction) -> terms.Action:
     assert isinstance(iaction.args[0], iast.Atom)  # Application expression
     call_action = terms.Call(iaction, expr_from_atom(im, iaction.args[0]))
     if len(iaction.args) == 2:
-        # TODO: multiple return values probably aren't constants?  Or do we have
-        # more args in the iaction?
-        assert isinstance(iaction.args[1], ilog.Const)  # return temporary
-        temp = binding_from_ivy_const(iaction.args[1])
-        return terms.Let(iaction, [temp], call_action)
+        # In this case, the call action returns a value.
+        lhs = expr_from_ivy(im, iaction.args[1])
+        rhs = call_action.app
+        return terms.Assign(iaction, lhs, rhs)
     else:
+        # In this case, the call action is entirely side-effecting.
         assert len(iaction.args) == 1
         return call_action
 
@@ -166,6 +198,8 @@ def local_action_from_ivy(im: imod.Module, iaction: iact.LocalAction) -> terms.L
 def action_from_ivy(im: imod.Module, act: iact.Action) -> terms.Action:
     if isinstance(act, iact.AssignAction):
         return assign_action_from_ivy(im, act)
+    if isinstance(act, iact.AssumeAction):
+        return assume_action_from_ivy(im, act)
     if isinstance(act, iact.LocalAction):
         return local_action_from_ivy(im, act)
     if isinstance(act, iact.CallAction):
@@ -175,6 +209,8 @@ def action_from_ivy(im: imod.Module, act: iact.Action) -> terms.Action:
         if len(subacts) == 1:
             return subacts[0]
         return terms.Sequence(act, subacts)
+    if isinstance(act, iact.HavocAction):
+        return None # XXX: Hole
     raise Exception(f"TODO: {type(act)}")
 
 
@@ -206,8 +242,8 @@ def record_from_ivy(im: imod.Module, name: str) -> terms.Record:
 
 
 def program_from_ivy(im: imod.Module) -> terms.Program:
-    porter_sorts = [sorts.from_ivy(s) for s in im.sort_destructors]
-    individuals = [binding_from_ivy_const(sym) for name, sym in im.sig.symbols.items()]
+    porter_sorts = [sorts.from_ivy(s) for s in im.sig.sorts.values()]
+    individuals = [binding_from_ivy_const(sym) for name, sym in im.sig.symbols.items() if name != "<"]  # XXX: hack
     inits = [action_from_ivy(im, a) for a in im.initial_actions]
     actions = [Binding(name, action_def_from_ivy(im, name, a)) for name, a in im.actions.items()]
 

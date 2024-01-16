@@ -58,7 +58,7 @@ class ExprTest(unittest.TestCase):
         # and then assigning the temporary to test_expr.
         act = action_from_ivy(im, test_expr_assign)
         assert isinstance(act, terms.Sequence)
-        assert isinstance(act.stmts[0], terms.Let)
+        assert isinstance(act.stmts[0], terms.Assign)
         assert isinstance(act.stmts[1], terms.Let)
 
     def test_apply_action_multi_arg(self):
@@ -82,5 +82,5 @@ class ExprTest(unittest.TestCase):
         # and then assigning the temporary to test_expr.
         act = action_from_ivy(im, test_expr_assign)
         assert isinstance(act, terms.Sequence)
-        assert isinstance(act.stmts[0], terms.Let)
+        assert isinstance(act.stmts[0], terms.Assign)
         assert isinstance(act.stmts[1], terms.Let)

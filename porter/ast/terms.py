@@ -45,6 +45,12 @@ class Constant(Expr):
 
 
 @dataclass
+class UnOp(Expr):
+    op: Any
+    expr: Expr
+
+
+@dataclass
 class BinOp(Expr):
     lhs: Expr
     op: Any
@@ -54,7 +60,7 @@ class BinOp(Expr):
 @dataclass
 class Apply(Expr):
     # TODO: should this instead be called Atom?
-    relsym: Constant
+    relsym: Expr
     args: list[Expr]
 
 
