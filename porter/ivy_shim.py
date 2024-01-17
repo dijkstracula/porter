@@ -110,6 +110,12 @@ def expr_from_and(im: imod.Module, expr: ilog.And) -> terms.Expr:
         return lhs
 
 
+def expr_from_iff(im: imod.Module, expr: ilog.Iff) -> terms.BinOp:
+    ltor = expr_from_ivy(im, expr.args[0])
+    rtol = expr_from_ivy(im, expr.args[1])
+    return terms.BinOp(expr, ltor, "iff", rtol)
+
+
 def expr_from_exists(im: imod.Module, fmla: ilog.Exists) -> terms.Exists:
     variables = [binding_from_ivy_const(c) for c in fmla.variables]
     body = expr_from_ivy(im, fmla.body)
@@ -160,6 +166,8 @@ def expr_from_ivy(im: imod.Module, expr) -> terms.Expr:
         return expr_from_or(im, expr)
     if isinstance(expr, ilog.Implies):
         return expr_from_implies(im, expr)
+    if isinstance(expr, ilog.Iff):
+        return expr_from_iff(im, expr)
     if isinstance(expr, ilog.Eq):
         return expr_from_eq(im, expr)
 

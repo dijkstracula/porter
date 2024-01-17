@@ -6,18 +6,18 @@ import warnings
 
 from . import compile_ivy
 from porter import ivy_shim
+from porter.ast import terms
 
 progdir = os.path.join(os.path.dirname(__file__), 'programs')
-tests = [f for f in os.listdir(progdir) if os.path.isfile(os.path.join(progdir, f))]
 
 
-@pytest.mark.parametrize("fn", tests)
-def test_prog(fn):
-    fn = os.path.join(progdir, fn)
+def compile_and_parse(fn) -> terms.Program:
+    oldcwd = os.getcwd()
+    os.chdir(os.path.dirname(fn))
     with open(fn) as f:
         im, ag = compile_ivy(f)
-        prog = ivy_shim.program_from_ivy(im)
-        pass
+        return ivy_shim.program_from_ivy(im)
+    os.chdir(oldcwd)
 
 
 def glob_progs(*paths):
@@ -30,9 +30,19 @@ def glob_progs(*paths):
         yield fn
 
 
+unit_tests = [os.path.join(progdir, f) for f in os.listdir(progdir) if os.path.isfile(os.path.join(progdir, f))]
+
+
+@pytest.mark.parametrize("fn", unit_tests)
+def test_isolate(fn):
+    compile_and_parse(fn)
+
+
 @pytest.mark.parametrize("fn", glob_progs('ivy-ts', 'src'))
 def test_ivy_ts(fn: pathlib.Path):
-    oldcwd = os.getcwd()
-    os.chdir(os.path.dirname(fn))
-    test_prog(fn)
-    os.chdir(oldcwd)
+    compile_and_parse(fn)
+
+
+@pytest.mark.parametrize("fn", glob_progs('accord-ivy', 'src'))
+def test_accord(fn: pathlib.Path):
+    compile_and_parse(fn)

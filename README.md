@@ -50,3 +50,10 @@ Porter uses pytest for unit tests and pyright for typechecking.
 poetry run pytest
 poetry run pyright
 ```
+
+If any dependent submodules are updated, you will need to update your local
+copy as well:
+
+```commandline
+git submodule update --remote --recursive
+```
