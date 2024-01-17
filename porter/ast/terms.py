@@ -65,6 +65,13 @@ class Apply(Expr):
 
 
 @dataclass
+class Ite(Expr):
+    test: Expr
+    then: Expr
+    els: Expr
+
+
+@dataclass
 class Exists(Expr):
     vars: list[Binding[Sort]]
     expr: Expr
@@ -74,6 +81,19 @@ class Exists(Expr):
 class Forall(Expr):
     vars: list[Binding[Sort]]
     expr: Expr
+
+
+#
+
+SomeStrategy = Enum("SomeStrategy", ["ARBITRARY", "MINIMISE", "MAXIMISE"])
+
+
+@dataclass
+class Some(Expr):
+    # TODO: I would like to rename this node.
+    vars: list[Binding[Sort]]
+    fmla: Expr
+    strat: SomeStrategy
 
 
 #
@@ -116,6 +136,12 @@ class Debug(Action):
 @dataclass
 class Ensures(Action):
     pred: Expr
+
+
+@dataclass
+class Native(Action):
+    fmt: str  # TODO: in Ivy this is a NativeCode
+    args: list[Expr]
 
 
 @dataclass

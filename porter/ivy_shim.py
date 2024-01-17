@@ -122,6 +122,26 @@ def expr_from_forall(im: imod.Module, fmla: ilog.Exists) -> terms.Forall:
     return terms.Forall(fmla, variables, body)
 
 
+def expr_from_ite(im: imod.Module, ite: ilog.Ite) -> terms.Ite:
+    test = expr_from_ivy(im, ite.args[0])
+    then = expr_from_ivy(im, ite.args[1])
+    els = expr_from_ivy(im, ite.args[2])
+    return terms.Ite(ite, test, then, els)
+
+
+def expr_from_some(im: imod.Module, expr: iast.Some) -> terms.Some:
+    if isinstance(expr, iast.SomeMin):
+        strat = terms.SomeStrategy.MINIMISE
+    elif isinstance(expr, iast.SomeMax):
+        strat = terms.SomeStrategy.MAXIMISE
+    else:
+        strat = terms.SomeStrategy.ARBITRARY
+
+    variables = [binding_from_ivy_const(c) for c in expr.args[0:-1]]
+    fmla = expr_from_ivy(im, expr.args[-1])
+    return terms.Some(expr, variables, fmla, strat)
+
+
 def expr_from_ivy(im: imod.Module, expr) -> terms.Expr:
     # Terminals
     if isinstance(expr, ilog.Const):
@@ -155,7 +175,14 @@ def expr_from_ivy(im: imod.Module, expr) -> terms.Expr:
     if isinstance(expr, ilog.ForAll):
         return expr_from_forall(im, expr)
 
-    raise Exception(f"TODO: {expr}")
+    if isinstance(expr, ilog.Ite):
+        return expr_from_ite(im, expr)
+
+    # TODOs
+    if isinstance(expr, iast.Some):
+        return expr_from_some(im, expr)
+
+    raise Exception(f"TODO: {expr} ({type(expr)})")
 
 
 # Action/statement conversion
@@ -246,11 +273,15 @@ def debug_action_from_ivy(im: imod.Module, iaction: iact.DebugAction) -> terms.D
 
 
 def local_action_from_ivy(im: imod.Module, iaction: iact.LocalAction) -> terms.Let:
-    assert isinstance(iaction.args[0], ilog.Const)  # Binding name
-    varname = binding_from_ivy_const(iaction.args[0])
-    assert isinstance(iaction.args[1], iact.Action)
-    act = action_from_ivy(im, iaction.args[1])
-    return terms.Let(im, [varname], act)
+    varnames = [binding_from_ivy_const(c) for c in iaction.args[:-1]]
+    act = action_from_ivy(im, iaction.args[-1])
+    return terms.Let(im, varnames, act)
+
+
+def native_action_from_ivy(im: imod.Module, iaction: iact.NativeAction) -> terms.Native:
+    code = str(iaction.args[0])
+    args = [expr_from_ivy(im, a) for a in iaction.args[1:]]
+    return terms.Native(iaction, code, args)
 
 
 def action_from_ivy(im: imod.Module, act: iact.Action) -> terms.Action:
@@ -271,6 +302,8 @@ def action_from_ivy(im: imod.Module, act: iact.Action) -> terms.Action:
         return debug_action_from_ivy(im, act)
     if isinstance(act, iact.LocalAction):
         return local_action_from_ivy(im, act)
+    if isinstance(act, iact.NativeAction):
+        return native_action_from_ivy(im, act)
     if isinstance(act, iact.Sequence):
         subacts = [action_from_ivy(im, a) for a in act.args]
         if len(subacts) == 1:
