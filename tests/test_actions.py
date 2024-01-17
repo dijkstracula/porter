@@ -37,6 +37,26 @@ class ExprTest(unittest.TestCase):
         assert isinstance(body.rhs, terms.BinOp)
         self.assertTrue(body.rhs.op, "+")
 
+    def test_while_with_decreases(self):
+        action = """action id(n: nat) returns (m: nat) = {
+                     m := 0;
+                     while n > 0 
+                        decreases n
+                     { 
+                        m := m + 1; 
+                        n := n - 1;
+                     }
+                 }"""
+        im, compiled = compile_action("id", action)
+        assert isinstance(compiled, iact.Sequence)
+        assert isinstance(compiled.args[0],
+                          iact.Sequence)  # TODO: I wonder why sequences are nested like this? Oh well.
+        assert isinstance(compiled.args[0].args[0], iact.AssignAction)  # m := 0
+        assert isinstance(compiled.args[0].args[1], iact.WhileAction)  # while [test] [body] [ranking]
+
+        while_ast = action_from_ivy(im, compiled.args[0].args[1])
+        assert isinstance(while_ast, terms.While)
+
     def test_apply_action(self):
         action = "action inc(n: nat) returns (m: nat) = { m := n + 1 }"
         init_act = "after init { " \

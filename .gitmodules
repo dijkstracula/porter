@@ -1,0 +1,6 @@
+[submodule "tests/programs/accord-ivy"]
+	path = tests/programs/accord-ivy
+	url = https://github.com/dijkstracula/accord-ivy/
+[submodule "tests/programs/ivy-ts"]
+	path = tests/programs/ivy-ts
+	url = https://github.com/dijkstracula/ivy-ts

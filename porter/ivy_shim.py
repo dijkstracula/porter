@@ -179,6 +179,17 @@ def if_from_ivy(im: imod.Module, iaction: iact.IfAction) -> terms.If:
     return terms.If(iaction, cond, then, els)
 
 
+def while_from_ivy(im: imod.Module, iaction: iact.WhileAction) -> terms.While:
+    cond = expr_from_ivy(im, iaction.args[0])
+    body = action_from_ivy(im, iaction.args[1])
+    if len(iaction.args) > 2:
+        # Slightly hacky but I can't be bothered to create an ast node for a Ranking yet.
+        measure = expr_from_ivy(im, iaction.args[2].args[0])
+    else:
+        measure = None
+    return terms.While(iaction, cond, measure, body)
+
+
 def action_def_from_ivy(im: imod.Module, name: str, iaction: iact.Action) -> terms.ActionDefinition:
     formal_params = []
     for p in iaction.formal_params:
@@ -245,6 +256,8 @@ def local_action_from_ivy(im: imod.Module, iaction: iact.LocalAction) -> terms.L
 def action_from_ivy(im: imod.Module, act: iact.Action) -> terms.Action:
     if isinstance(act, iact.IfAction):
         return if_from_ivy(im, act)
+    if isinstance(act, iact.WhileAction):
+        return while_from_ivy(im, act)
 
     if isinstance(act, iact.AssignAction):
         return assign_action_from_ivy(im, act)
