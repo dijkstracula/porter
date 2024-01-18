@@ -16,8 +16,8 @@ def compile_and_parse(fn) -> toplevels.Program:
     os.chdir(os.path.dirname(fn))
     with open(fn) as f:
         im, ag = compile_ivy(f)
-        return ivy_shim.program_from_ivy(im)
     os.chdir(oldcwd)
+    return ivy_shim.program_from_ivy(im)
 
 
 def glob_progs(*paths):

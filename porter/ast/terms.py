@@ -1,11 +1,13 @@
 from dataclasses import dataclass
 from enum import Enum
 
-from typing import Any, Optional
+from typing import Any, Optional, TypeVar
 
 from . import AST, Binding
 
 from .sorts import Sort
+
+T = TypeVar("T")
 
 
 #
