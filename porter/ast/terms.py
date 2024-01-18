@@ -21,12 +21,6 @@ class Constant(Expr):
 
 
 @dataclass
-class UnOp(Expr):
-    op: Any
-    expr: Expr
-
-
-@dataclass
 class BinOp(Expr):
     lhs: Expr
     op: str
@@ -70,6 +64,12 @@ class Some(Expr):
     vars: list[Binding[Sort]]
     fmla: Expr
     strat: SomeStrategy
+
+
+@dataclass
+class UnOp(Expr):
+    op: Any
+    expr: Expr
 
 
 #
@@ -154,22 +154,3 @@ class While(Action):
 class Let(Action):
     vardecls: list[Binding[Sort]]
     scope: Action
-
-
-ActionKind = Enum("ActionKind", ["NORMAL", "EXPORTED", "IMPORTED"])
-
-
-@dataclass
-class ActionDefinition(AST):
-    kind: ActionKind
-    formal_params: list[Binding[Sort]]
-    formal_returns: list[Binding[Sort]]
-    body: Action
-
-
-@dataclass
-class Program(AST):
-    sorts: list[Sort]
-    individuals: list[Binding[Sort]]
-    inits: list[Action]
-    actions: list[Binding[ActionDefinition]]

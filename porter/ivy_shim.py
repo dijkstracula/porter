@@ -11,7 +11,7 @@ from ivy import logic as ilog
 from ivy import ivy_module as imod
 
 from . import ast
-from .ast import Binding, sorts, terms
+from .ast import Binding, sorts, terms, toplevels
 
 
 def compile_progtext(path: Path) -> iart.AnalysisGraph:
@@ -196,14 +196,6 @@ def expr_from_ivy(im: imod.Module, expr) -> terms.Expr:
 # Action/statement conversion
 
 
-def action_kind_from_name(name: str) -> terms.ActionKind:
-    if name.startswith("ext:"):
-        return terms.ActionKind.EXPORTED
-    if name.startswith("imp"):
-        return terms.ActionKind.IMPORTED
-    return terms.ActionKind.NORMAL
-
-
 def if_from_ivy(im: imod.Module, iaction: iact.IfAction) -> terms.If:
     cond = expr_from_ivy(im, iaction.args[0])
     then = action_from_ivy(im, iaction.args[1])
@@ -223,25 +215,6 @@ def while_from_ivy(im: imod.Module, iaction: iact.WhileAction) -> terms.While:
     else:
         measure = None
     return terms.While(iaction, cond, measure, body)
-
-
-def action_def_from_ivy(im: imod.Module, name: str, iaction: iact.Action) -> terms.ActionDefinition:
-    formal_params = []
-    for p in iaction.formal_params:
-        binding = binding_from_ivy_const(p)
-        binding.name = strip_prefixes(["fml"], ":", binding.name)
-        formal_params.append(binding)
-
-    formal_returns = []
-    for p in iaction.formal_returns:
-        binding = binding_from_ivy_const(p)
-        binding.name = strip_prefixes(["fml"], ":", binding.name)
-        formal_returns.append(binding)
-
-    body = action_from_ivy(im, iaction)
-    kind = action_kind_from_name(name)
-
-    return terms.ActionDefinition(iaction, kind, formal_params, formal_returns, body)
 
 
 def assert_from_ivy(im: imod.Module, iaction: iact.AssumeAction) -> terms.Assert:
@@ -351,11 +324,38 @@ def record_from_ivy(im: imod.Module, name: str) -> terms.Record:
     return terms.Record(None, fields, actions)
 
 
-def program_from_ivy(im: imod.Module) -> terms.Program:
+def action_kind_from_name(name: str) -> toplevels.ActionKind:
+    if name.startswith("ext:"):
+        return toplevels.ActionKind.EXPORTED
+    if name.startswith("imp"):
+        return toplevels.ActionKind.IMPORTED
+    return toplevels.ActionKind.NORMAL
+
+
+def action_def_from_ivy(im: imod.Module, name: str, iaction: iact.Action) -> toplevels.ActionDefinition:
+    formal_params = []
+    for p in iaction.formal_params:
+        binding = binding_from_ivy_const(p)
+        binding.name = strip_prefixes(["fml"], ":", binding.name)
+        formal_params.append(binding)
+
+    formal_returns = []
+    for p in iaction.formal_returns:
+        binding = binding_from_ivy_const(p)
+        binding.name = strip_prefixes(["fml"], ":", binding.name)
+        formal_returns.append(binding)
+
+    body = action_from_ivy(im, iaction)
+    kind = action_kind_from_name(name)
+
+    return toplevels.ActionDefinition(iaction, kind, formal_params, formal_returns, body)
+
+
+def program_from_ivy(im: imod.Module) -> toplevels.Program:
     porter_sorts = [sorts.from_ivy(s) for s in im.sig.sorts.values()]
     individuals = [binding_from_ivy_const(sym) for name, sym in im.sig.symbols.items() if name != "<"]  # XXX: hack
     inits = [action_from_ivy(im, a) for a in im.initial_actions]
     actions = [Binding(name, action_def_from_ivy(im, name, a)) for name, a in im.actions.items()]
 
     # TODO: What's a good ivy ast to pass in here?
-    return terms.Program(None, porter_sorts, individuals, inits, actions)
+    return toplevels.Program(None, porter_sorts, individuals, inits, actions)

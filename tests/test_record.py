@@ -1,5 +1,5 @@
 from porter import ast, ivy_shim
-from porter.ast import terms, sorts
+from porter.ast import toplevels, sorts, terms
 
 from . import compile_toplevel
 
@@ -47,7 +47,7 @@ class RecordTest(unittest.TestCase):
         # Actions
         self.assertEqual(len(rec.actions), 1)
         self.assertTrue(rec.actions[0].name, "sum")
-        self.assertEqual(type(rec.actions[0].decl), terms.ActionDefinition)
+        self.assertEqual(type(rec.actions[0].decl), toplevels.ActionDefinition)
         self.assertTrue(type(rec.actions[0].decl.formal_params[0].name), "self")
         self.assertTrue(type(rec.actions[0].decl.formal_returns[0].name), "z")
         pass
