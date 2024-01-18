@@ -1,41 +1,17 @@
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from enum import Enum
 
-from ivy import ivy_utils as iu
+from typing import Any, Optional
 
-from typing import Any, Generic, Optional, TypeVar
+from . import AST, Binding
 
-from . import Binding, Position
-
-from . import sorts
 from .sorts import Sort
-
-
-@dataclass
-class AST:
-    _ivy_node: Optional[Any] = field(repr=False)
-
-    def pos(self) -> Optional[Position]:
-        if self._ivy_node is None:
-            return None
-        if not hasattr(self._ivy_node, 'lineno'):
-            return None
-        if not isinstance(self._ivy_node.lineno, iu.LocationTuple):
-            raise Exception(
-                f"What is a lineno?  It's a {type(self._ivy_node.lineno)} as opposed to an iu.LocationTuple")
-        return Position.from_ivy(self._ivy_node.lineno)
-
-    def sort(self) -> Optional[Sort]:
-        if self._ivy_node is None:
-            return None
-        if not hasattr(self._ivy_node, 'sort'):
-            raise Exception(f"Missing sort for {self._ivy_node}")
-        return sorts.from_ivy(self._ivy_node)
 
 
 #
 class Expr(AST):
     # TODO: what should the relationship between an Expr and a Formula be?
+    # At the present they're the same.  That's probably fine?
     pass
 
 
@@ -53,7 +29,7 @@ class UnOp(Expr):
 @dataclass
 class BinOp(Expr):
     lhs: Expr
-    op: Any
+    op: str
     rhs: Expr
 
 

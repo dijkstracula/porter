@@ -196,7 +196,7 @@ def expr_from_ivy(im: imod.Module, expr) -> terms.Expr:
 # Action/statement conversion
 
 
-def action_kind_from_action_name(name: str) -> terms.ActionKind:
+def action_kind_from_name(name: str) -> terms.ActionKind:
     if name.startswith("ext:"):
         return terms.ActionKind.EXPORTED
     if name.startswith("imp"):
@@ -239,28 +239,28 @@ def action_def_from_ivy(im: imod.Module, name: str, iaction: iact.Action) -> ter
         formal_returns.append(binding)
 
     body = action_from_ivy(im, iaction)
-    kind = action_kind_from_action_name(name)
+    kind = action_kind_from_name(name)
 
     return terms.ActionDefinition(iaction, kind, formal_params, formal_returns, body)
 
 
-def assert_action_from_ivy(im: imod.Module, iaction: iact.AssumeAction) -> terms.Assert:
+def assert_from_ivy(im: imod.Module, iaction: iact.AssumeAction) -> terms.Assert:
     pred = expr_from_ivy(im, iaction.args[0])
     return terms.Assert(im, pred)
 
 
-def assign_action_from_ivy(im: imod.Module, iaction: iact.AssignAction) -> terms.Assign:
+def assign_from_ivy(im: imod.Module, iaction: iact.AssignAction) -> terms.Assign:
     lhs = expr_from_ivy(im, iaction.args[0])
     rhs = expr_from_ivy(im, iaction.args[1])
     return terms.Assign(iaction, lhs, rhs)
 
 
-def assume_action_from_ivy(im: imod.Module, iaction: iact.AssumeAction) -> terms.Assume:
+def assume_from_ivy(im: imod.Module, iaction: iact.AssumeAction) -> terms.Assume:
     pred = expr_from_ivy(im, iaction.args[0])
     return terms.Assume(im, pred)
 
 
-def call_action_from_ivy(im: imod.Module, iaction: iact.CallAction) -> terms.Action:
+def call_from_ivy(im: imod.Module, iaction: iact.CallAction) -> terms.Action:
     assert isinstance(iaction.args[0], iast.Atom)  # Application expression
     call_action = terms.Call(iaction, expr_from_atom(im, iaction.args[0]))
     if len(iaction.args) == 2:
@@ -274,19 +274,19 @@ def call_action_from_ivy(im: imod.Module, iaction: iact.CallAction) -> terms.Act
         return call_action
 
 
-def debug_action_from_ivy(im: imod.Module, iaction: iact.DebugAction) -> terms.Debug:
+def debug_from_ivy(im: imod.Module, iaction: iact.DebugAction) -> terms.Debug:
     msg = repr(iaction.args[0])
     args = [Binding(di.args[0], expr_from_ivy(im, di.args[1])) for di in iaction.args[1:]]
     return terms.Debug(iaction, msg, args)
 
 
-def local_action_from_ivy(im: imod.Module, iaction: iact.LocalAction) -> terms.Let:
+def local_from_ivy(im: imod.Module, iaction: iact.LocalAction) -> terms.Let:
     varnames = [binding_from_ivy_const(c) for c in iaction.args[:-1]]
     act = action_from_ivy(im, iaction.args[-1])
     return terms.Let(im, varnames, act)
 
 
-def native_action_from_ivy(im: imod.Module, iaction: iact.NativeAction) -> terms.Native:
+def native_from_ivy(im: imod.Module, iaction: iact.NativeAction) -> terms.Native:
     code = str(iaction.args[0])
     args = [expr_from_ivy(im, a) for a in iaction.args[1:]]
     return terms.Native(iaction, code, args)
@@ -299,19 +299,19 @@ def action_from_ivy(im: imod.Module, act: iact.Action) -> terms.Action:
         return while_from_ivy(im, act)
 
     if isinstance(act, iact.AssignAction):
-        return assign_action_from_ivy(im, act)
+        return assign_from_ivy(im, act)
     if isinstance(act, iact.AssumeAction):
-        return assume_action_from_ivy(im, act)
+        return assume_from_ivy(im, act)
     if isinstance(act, iact.AssertAction):
-        return assert_action_from_ivy(im, act)
+        return assert_from_ivy(im, act)
     if isinstance(act, iact.CallAction):
-        return call_action_from_ivy(im, act)
+        return call_from_ivy(im, act)
     if isinstance(act, iact.DebugAction):
-        return debug_action_from_ivy(im, act)
+        return debug_from_ivy(im, act)
     if isinstance(act, iact.LocalAction):
-        return local_action_from_ivy(im, act)
+        return local_from_ivy(im, act)
     if isinstance(act, iact.NativeAction):
-        return native_action_from_ivy(im, act)
+        return native_from_ivy(im, act)
     if isinstance(act, iact.Sequence):
         subacts = [action_from_ivy(im, a) for a in act.args]
         if len(subacts) == 1:

@@ -27,4 +27,4 @@ build-backend = "poetry.core.masonry.api"
 generate = 'porter.cli:generate'
 
 [tool.pytest.ini_options]
-addopts = ["--import-mode=importlib",]
+addopts = ["--import-mode=importlib", "-v"]

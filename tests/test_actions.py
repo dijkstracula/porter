@@ -81,7 +81,7 @@ class ExprTest(unittest.TestCase):
         assert isinstance(act.stmts[0], terms.Assign)
         assert isinstance(act.stmts[1], terms.Let)
 
-    def test_apply_action_multi_arg(self):
+    def test_apply_multi_arg(self):
         action = "action addition(m:nat, n: nat) returns (p: nat) = { p := m + n }"
         init_act = "after init { " \
                    f"""var test_expr: nat := addition(41, 1);
