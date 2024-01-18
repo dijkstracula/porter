@@ -11,7 +11,7 @@ from ivy import logic as ilog
 from ivy import ivy_module as imod
 
 from . import ast
-from .ast import Binding, sorts, terms, toplevels
+from .ast import Binding, sorts, terms
 
 
 def compile_progtext(path: Path) -> iart.AnalysisGraph:
@@ -253,6 +253,12 @@ def debug_from_ivy(im: imod.Module, iaction: iact.DebugAction) -> terms.Debug:
     return terms.Debug(iaction, msg, args)
 
 
+def havok_from_ivy(im: imod.Module, iaction: iact.HavocAction) -> terms.Havok:
+    with im:
+        modifies = [expr_from_ivy(im, m) for m in iaction.modifies()]
+    return terms.Havok(iaction, modifies)
+
+
 def local_from_ivy(im: imod.Module, iaction: iact.LocalAction) -> terms.Let:
     varnames = [binding_from_ivy_const(c) for c in iaction.args[:-1]]
     act = action_from_ivy(im, iaction.args[-1])
@@ -281,6 +287,8 @@ def action_from_ivy(im: imod.Module, act: iact.Action) -> terms.Action:
         return call_from_ivy(im, act)
     if isinstance(act, iact.DebugAction):
         return debug_from_ivy(im, act)
+    if isinstance(act, iact.HavocAction):
+        return havok_from_ivy(im, act)
     if isinstance(act, iact.LocalAction):
         return local_from_ivy(im, act)
     if isinstance(act, iact.NativeAction):
@@ -290,9 +298,6 @@ def action_from_ivy(im: imod.Module, act: iact.Action) -> terms.Action:
         if len(subacts) == 1:
             return subacts[0]
         return terms.Sequence(act, subacts)
-
-    if isinstance(act, iact.HavocAction):
-        return None  # XXX: Hole
 
     raise Exception(f"TODO: {type(act)}")
 
@@ -324,15 +329,15 @@ def record_from_ivy(im: imod.Module, name: str) -> terms.Record:
     return terms.Record(None, fields, actions)
 
 
-def action_kind_from_name(name: str) -> toplevels.ActionKind:
+def action_kind_from_name(name: str) -> terms.ActionKind:
     if name.startswith("ext:"):
-        return toplevels.ActionKind.EXPORTED
+        return terms.ActionKind.EXPORTED
     if name.startswith("imp"):
-        return toplevels.ActionKind.IMPORTED
-    return toplevels.ActionKind.NORMAL
+        return terms.ActionKind.IMPORTED
+    return terms.ActionKind.NORMAL
 
 
-def action_def_from_ivy(im: imod.Module, name: str, iaction: iact.Action) -> toplevels.ActionDefinition:
+def action_def_from_ivy(im: imod.Module, name: str, iaction: iact.Action) -> terms.ActionDefinition:
     formal_params = []
     for p in iaction.formal_params:
         binding = binding_from_ivy_const(p)
@@ -348,14 +353,14 @@ def action_def_from_ivy(im: imod.Module, name: str, iaction: iact.Action) -> top
     body = action_from_ivy(im, iaction)
     kind = action_kind_from_name(name)
 
-    return toplevels.ActionDefinition(iaction, kind, formal_params, formal_returns, body)
+    return terms.ActionDefinition(iaction, kind, formal_params, formal_returns, body)
 
 
-def program_from_ivy(im: imod.Module) -> toplevels.Program:
+def program_from_ivy(im: imod.Module) -> terms.Program:
     porter_sorts = [sorts.from_ivy(s) for s in im.sig.sorts.values()]
     individuals = [binding_from_ivy_const(sym) for name, sym in im.sig.symbols.items() if name != "<"]  # XXX: hack
     inits = [action_from_ivy(im, a) for a in im.initial_actions]
     actions = [Binding(name, action_def_from_ivy(im, name, a)) for name, a in im.actions.items()]
 
     # TODO: What's a good ivy ast to pass in here?
-    return toplevels.Program(None, porter_sorts, individuals, inits, actions)
+    return terms.Program(None, porter_sorts, individuals, inits, actions)

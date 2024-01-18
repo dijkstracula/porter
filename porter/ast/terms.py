@@ -78,14 +78,6 @@ class UnOp(Expr):
 
 
 @dataclass
-class Record(AST):
-    fields: list[Binding[Sort]]
-    actions: list[Binding["ActionDefinition"]]
-
-
-#
-
-@dataclass
 class Action(AST):
     pass
 
@@ -93,6 +85,12 @@ class Action(AST):
 @dataclass
 class Assert(Action):
     pred: Expr
+
+
+@dataclass
+class Assign(Action):
+    lhs: Expr
+    rhs: Expr
 
 
 @dataclass
@@ -117,6 +115,11 @@ class Ensures(Action):
 
 
 @dataclass
+class Havok(Action):
+    modifies: list[Expr]
+
+
+@dataclass
 class Native(Action):
     fmt: str  # TODO: in Ivy this is a NativeCode
     args: list[Expr]
@@ -128,21 +131,15 @@ class Requires(Action):
 
 
 @dataclass
-class Assign(Action):
-    lhs: Expr
-    rhs: Expr
+class If(Action):
+    test: Expr
+    then: Action
+    els: Optional[Action]
 
 
 @dataclass
 class Sequence(Action):
     stmts: list[Action]
-
-
-@dataclass
-class If(Action):
-    test: Expr
-    then: Action
-    els: Optional[Action]
 
 
 @dataclass
@@ -156,3 +153,30 @@ class While(Action):
 class Let(Action):
     vardecls: list[Binding[Sort]]
     scope: Action
+
+
+ActionKind = Enum("ActionKind", ["NORMAL", "EXPORTED", "IMPORTED"])
+
+
+@dataclass
+class ActionDefinition(AST):
+    kind: ActionKind
+    formal_params: list[Binding[Sort]]
+    formal_returns: list[Binding[Sort]]
+    body: Action
+
+
+@dataclass
+class Record(AST):
+    fields: list[Binding[Sort]]
+    actions: list[Binding[ActionDefinition]]
+
+
+#
+
+@dataclass
+class Program(AST):
+    sorts: list[Sort]
+    individuals: list[Binding[Sort]]
+    inits: list[Action]
+    actions: list[Binding[ActionDefinition]]

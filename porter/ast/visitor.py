@@ -26,7 +26,7 @@ class Visitor(Generic[T]):
                 return self.enum(discs)
             case Function(domain, range):
                 self.begin_function(sort)
-                domain = [self.visit_sort(sort, d) for d in domain]
+                domain = [self.visit_sort(d) for d in domain]
                 range = self.visit_sort(range)
                 return self.finish_function(sort, domain, range)
             case Numeric(lo, hi):
@@ -74,12 +74,12 @@ class Visitor(Generic[T]):
                 return self.constant(rep)
             case Exists(_, vars, expr):
                 self.begin_exists(node)
-                vars = [Binding(b.name, self._visit_sort(b.decl)) for b in vars]
+                vars = [Binding(b.name, self.visit_sort(b.decl)) for b in vars]
                 expr = self.visit_expr(expr)
                 return self.finish_exists(node, vars, expr)
             case Forall(_, vars, expr):
                 self.begin_forall(node)
-                vars = [Binding(b.name, self._visit_sort(b.decl)) for b in vars]
+                vars = [Binding(b.name, self.visit_sort(b.decl)) for b in vars]
                 expr = self.visit_expr(expr)
                 return self.finish_forall(node, vars, expr)
             case Ite(_, test, then, els):
@@ -90,7 +90,7 @@ class Visitor(Generic[T]):
                 return self.finish_ite(node, test, then, els)
             case Some(_, vars, fmla, _strat):
                 self.begin_some(node)
-                vars = [self.visit_expr(var) for var in vars]
+                vars = [Binding(b.name, self.visit_sort(b.decl)) for b in vars]
                 fmla = self.visit_expr(fmla)
                 return self.finish_some(node, vars, fmla)
             case UnOp(_, _op, expr):
@@ -139,7 +139,7 @@ class Visitor(Generic[T]):
     def begin_some(self, node: Some):
         pass
 
-    def finish_some(self, node: Some, vars: list[T], fmla: T):
+    def finish_some(self, node: Some, vars: list[Binding[T]], fmla: T):
         raise UnimplementedASTNodeHandler(Some)
 
     def begin_unop(self, node: UnOp):

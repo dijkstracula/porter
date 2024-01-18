@@ -6,12 +6,12 @@ import warnings
 
 from . import compile_ivy
 from porter import ivy_shim
-from porter.ast import toplevels
+from porter.ast import terms
 
 progdir = os.path.join(os.path.dirname(__file__), 'programs')
 
 
-def compile_and_parse(fn) -> toplevels.Program:
+def compile_and_parse(fn) -> terms.Program:
     oldcwd = os.getcwd()
     os.chdir(os.path.dirname(fn))
     with open(fn) as f:
