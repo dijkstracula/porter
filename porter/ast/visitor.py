@@ -149,3 +149,77 @@ class Visitor(Generic[T]):
 
     # Actions
 
+    def visit_action(self, node: Action) -> T:
+        match node:
+            case Assert(_, pred):
+                self._begin_assert(node)
+                pred = self.visit_expr(pred)
+                return self._finish_assert(node, pred)
+            case Assign(_, lhs, rhs):
+                self._begin_assign(node)
+                lhs = self.visit_expr(lhs)
+                rhs = self.visit_expr(rhs)
+                return self._finish_assign(node, lhs, rhs)
+            case Assume(_, pred):
+                self._begin_assume(node)
+                pred = self.visit_expr(pred)
+                return self._finish_assume(node)
+            case Call(_, app):
+                self._begin_call(node)
+                app = self.visit_expr(app)
+                return self._finish_app(node, app)
+            case Debug(_, _msg, args):
+                self._begin_debug(node)
+                args = [Binding(b.name, self.visit_expr(b.decl)) for b in args]
+                self._finish_debug(node, args)
+            case Ensures(_, pred):
+                self._begin_ensures(node)
+                pred = self.visit_expr(pred)
+                return self._finish_ensures(node, pred)
+            case Havok(_, modifies):
+                self._begin_havok(node)
+                modifies = [self.visit_expr(e) for e in modifies]
+                return self._finish_havok(node, modifies)
+        raise Exception(f"TODO: {node}")
+
+    def _begin_assert(self, act: Assert):
+        pass
+
+    def _finish_assert(self, act: Assert, pred: T):
+        raise UnimplementedASTNodeHandler(Assert)
+
+    def _begin_assign(self, act: Assign):
+        pass
+
+    def _finish_assign(self, act: Assign, lhs: T, rhs: T):
+        raise UnimplementedASTNodeHandler(Assign)
+
+    def _begin_assume(self, act: Assume):
+        pass
+
+    def _finish_assume(self, act: Assume, pred: T):
+        raise UnimplementedASTNodeHandler(Assume)
+
+    def _begin_call(self, act: Call):
+        pass
+
+    def _finish_Call(self, act: Call, app: T):
+        raise UnimplementedASTNodeHandler(Call)
+
+    def _begin_debug(self, act: Debug):
+        pass
+
+    def _finish_debug(self, act: Debug, args: list[Binding[T]]):
+        raise UnimplementedASTNodeHandler(Debug)
+
+    def _begin_ensures(self, act: Ensures):
+        pass
+
+    def _finish_ensures(self, act: Ensures, pred: T):
+        raise UnimplementedASTNodeHandler(Ensures)
+
+    def _begin_havok(self, act: Havok):
+        pass
+
+    def _finish_havok(self, act: Havok, modifies: list[T]):
+        raise UnimplementedASTNodeHandler(Havok)
