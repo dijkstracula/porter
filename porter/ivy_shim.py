@@ -65,7 +65,7 @@ def expr_from_var(im: imod.Module, v: ilog.Var) -> terms.Constant:
 
 
 def expr_from_atom(im: imod.Module, expr: iast.Atom) -> terms.Apply:
-    relsym = expr.rep
+    relsym = terms.Constant(None, expr.rep)
     args = [expr_from_ivy(im, a) for a in expr.args]
     return terms.Apply(expr, relsym, args)
 
@@ -150,6 +150,11 @@ def expr_from_some(im: imod.Module, expr: iast.Some) -> terms.Some:
 
 def expr_from_ivy(im: imod.Module, expr) -> terms.Expr:
     # Terminals
+    if isinstance(expr, str):
+        # I don't understand why Ivy can give us a str in this case,
+        # but this is probably the best way to deal with it.
+        return terms.Constant(None, expr)
+
     if isinstance(expr, ilog.Const):
         return expr_from_const(im, expr)
     if isinstance(expr, ilog.Var):

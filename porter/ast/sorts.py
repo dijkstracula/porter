@@ -43,7 +43,7 @@ class BitVec(Sort):
 
 
 @dataclass
-class Enum(Sort):
+class Enumeration(Sort):
     discriminants: list[str]
 
 
@@ -68,7 +68,7 @@ def from_ivy(sort) -> Sort:
         return from_ivy(sort.sort)
     if isinstance(sort, ilog.EnumeratedSort):
         discriminants = [str(x) for x in sort.extension]
-        return Enum(discriminants)
+        return Enumeration(discriminants)
     if isinstance(sort, ilog.FunctionSort):
         domain = [from_ivy(s) for s in sort.domain]
         ret = from_ivy(sort.range)

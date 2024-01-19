@@ -1,6 +1,6 @@
-from typing import Generic, TypeVar
+from typing import Generic
 
-from .sorts import *
+from .sorts import Bool, BitVec, Enumeration, Function, Numeric, Uninterpreted
 from .terms import *
 
 T = TypeVar("T")
@@ -16,6 +16,18 @@ class UnimplementedASTNodeHandler(Exception):
 
 # noinspection PyMethodMayBeStatic,PyShadowingBuiltins
 class Visitor(Generic[T]):
+    # These are all the fields in a Program.  Feels weird to accumulate them
+    # up mutably like this, but ooooh well.
+    sorts: list[T]
+    individuals: list[Binding[T]]
+    inits: list[T]
+    actions: list[Binding[T]]
+
+    def visit_program(self, prog: Program):
+        self.sorts = [self.visit_sort(s) for s in prog.sorts]
+        self.individuals = [Binding(b.name, self.visit_sort(b.decl)) for b in prog.individuals]
+        self.inits = [self.visit_action(a) for a in prog.inits]
+        # self. = [self.visit_action(a) for a in prog.inits]
 
     # Sorts
 
@@ -25,7 +37,7 @@ class Visitor(Generic[T]):
                 return self.bool()
             case BitVec(width):
                 return self.bv(width)
-            case Enum(discs):
+            case Enumeration(discs):
                 return self.enum(discs)
             case Function(domain, range):
                 self._begin_function(sort)
@@ -163,15 +175,15 @@ class Visitor(Generic[T]):
             case Assume(_, pred):
                 self._begin_assume(node)
                 pred = self.visit_expr(pred)
-                return self._finish_assume(node)
+                return self._finish_assume(node, pred)
             case Call(_, app):
                 self._begin_call(node)
                 app = self.visit_expr(app)
-                return self._finish_app(node, app)
+                return self._finish_call(node, app)
             case Debug(_, _msg, args):
                 self._begin_debug(node)
                 args = [Binding(b.name, self.visit_expr(b.decl)) for b in args]
-                self._finish_debug(node, args)
+                return self._finish_debug(node, args)
             case Ensures(_, pred):
                 self._begin_ensures(node)
                 pred = self.visit_expr(pred)
@@ -180,6 +192,37 @@ class Visitor(Generic[T]):
                 self._begin_havok(node)
                 modifies = [self.visit_expr(e) for e in modifies]
                 return self._finish_havok(node, modifies)
+            case If(_, test, then, els):
+                self._begin_if(node)
+                test = self.visit_expr(test)
+                then = self.visit_action(then)
+                if els is not None:
+                    els = self.visit_action(els)
+                return self._finish_if(node, test, then, els)
+            case Let(_, vardecls, scope):
+                self._begin_let(node)
+                vardecls = [Binding(b.name, self.visit_sort(b.decl)) for b in vardecls]
+                scope = self.visit_action(scope)
+                return self._finish_let(node, vardecls, scope)
+            case Native(_, _fmt, args):
+                self._begin_native(node)
+                args = [self.visit_expr(arg) for arg in args]
+                return self._finish_native(node, args)
+            case Requires(_, pred):
+                self._begin_requires(node)
+                pred = self.visit_expr(pred)
+                return self._finish_requires(node, pred)
+            case Sequence(_, stmts):
+                self._begin_sequence(node)
+                stmts = [self.visit_action(stmt) for stmt in stmts]
+                return self._finish_sequence(node, stmts)
+            case While(_, test, decreases, do):
+                self._begin_while(node)
+                test = self.visit_expr(test)
+                if decreases is not None:
+                    decreases = self.visit_expr(decreases)
+                do = self.visit_action(do)
+                return self._finish_while(node, test, decreases, do)
         raise Exception(f"TODO: {node}")
 
     def _begin_assert(self, act: Assert):
@@ -203,7 +246,7 @@ class Visitor(Generic[T]):
     def _begin_call(self, act: Call):
         pass
 
-    def _finish_Call(self, act: Call, app: T):
+    def _finish_call(self, act: Call, app: T):
         raise UnimplementedASTNodeHandler(Call)
 
     def _begin_debug(self, act: Debug):
@@ -223,3 +266,39 @@ class Visitor(Generic[T]):
 
     def _finish_havok(self, act: Havok, modifies: list[T]):
         raise UnimplementedASTNodeHandler(Havok)
+
+    def _begin_if(self, act: If):
+        pass
+
+    def _finish_if(self, act: If, test: T, then: T, els: Optional[T]):
+        raise UnimplementedASTNodeHandler(If)
+
+    def _begin_let(self, act: Let):
+        pass
+
+    def _finish_let(self, act: Let, vardecls: list[Binding[T]], scope: T):
+        raise UnimplementedASTNodeHandler(Let)
+
+    def _begin_native(self, act: Native):
+        pass
+
+    def _finish_native(self, act: Native, args: list[T]):
+        raise UnimplementedASTNodeHandler(Native)
+
+    def _begin_requires(self, act: Requires):
+        pass
+
+    def _finish_requires(self, act: Requires, pred: T):
+        raise UnimplementedASTNodeHandler(Requires)
+
+    def _begin_sequence(self, act: Sequence):
+        pass
+
+    def _finish_sequence(self, act: Sequence, stmts: list[T]):
+        raise UnimplementedASTNodeHandler(Sequence)
+
+    def _begin_while(self, act: While):
+        pass
+
+    def _finish_while(self, act: While, test: T, decreases: Optional[T], do: T):
+        raise UnimplementedASTNodeHandler(While)

@@ -81,4 +81,4 @@ class ExprTest(unittest.TestCase):
         ivy_expr = iast.Atom("inc", ilog.Const("42", ilog.UninterpretedSort("nat")))
         expr = expr_from_ivy(imod.Module, ivy_expr)
         assert isinstance(expr, terms.Apply)
-        self.assertEqual(expr.relsym, "inc")
+        self.assertEqual(expr.relsym, terms.Constant(None, "inc"))

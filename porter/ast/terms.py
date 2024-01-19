@@ -120,6 +120,19 @@ class Havok(Action):
 
 
 @dataclass
+class If(Action):
+    test: Expr
+    then: Action
+    els: Optional[Action]
+
+
+@dataclass
+class Let(Action):
+    vardecls: list[Binding[Sort]]
+    scope: Action
+
+
+@dataclass
 class Native(Action):
     fmt: str  # TODO: in Ivy this is a NativeCode
     args: list[Expr]
@@ -128,13 +141,6 @@ class Native(Action):
 @dataclass
 class Requires(Action):
     pred: Expr
-
-
-@dataclass
-class If(Action):
-    test: Expr
-    then: Action
-    els: Optional[Action]
 
 
 @dataclass
@@ -147,12 +153,6 @@ class While(Action):
     test: Expr
     decreases: Optional[Expr]
     do: Action
-
-
-@dataclass
-class Let(Action):
-    vardecls: list[Binding[Sort]]
-    scope: Action
 
 
 ActionKind = Enum("ActionKind", ["NORMAL", "EXPORTED", "IMPORTED"])
