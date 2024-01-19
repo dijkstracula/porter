@@ -182,7 +182,11 @@ def expr_from_ivy(im: imod.Module, expr) -> terms.Expr:
         return expr_from_exists(im, expr)
     if isinstance(expr, ilog.ForAll):
         return expr_from_forall(im, expr)
+    if isinstance(expr, iast.LabeledFormula):
+        # XXX: Hacky.  Is it fine to throw out the label?
+        return expr_from_ivy(im, expr.args[1])
 
+    # Ternary operators
     if isinstance(expr, ilog.Ite):
         return expr_from_ite(im, expr)
 
