@@ -1,6 +1,5 @@
 from ivy import ivy_actions as iact
 from ivy import ivy_module as imod
-from ivy import logic as ilog
 
 import porter.ast
 from . import compile_toplevel, extract_after_init
