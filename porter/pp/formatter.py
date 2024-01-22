@@ -21,6 +21,7 @@ def naive(w: int, k: int, d: Doc) -> Doc:
         case Nest(i, d):
             return Nest(i, naive(w, i, d))
         case Choice(d1, d2):
+            # TODO: if neither fits, we could consider flattening and retrying?
             if d1.fits(w - k):
                 return d1
             else:

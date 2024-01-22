@@ -122,5 +122,8 @@ class Nest(Doc):
 class Choice(Doc):
     """The non-deterministic choice of two documents, both of which must flatten to
     the same canonical document.  (Wadler's Union)"""
+    # TODO: Contemplate factoring this out into an Iterable[Doc] and be explicit about
+    # Doc being a _canonicalized_ format so we don't have to have runtime failures if
+    # we try to e.g. take the length of a Choice.
     d1: Doc
     d2: Doc
