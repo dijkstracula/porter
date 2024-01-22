@@ -1,35 +1,72 @@
 """ The world's most naive pretty-printing combinators, after
 Wadler (https://homepages.inf.ed.ac.uk/wadler/papers/prettier/prettier.pdf). """
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
 
 class Doc:
-    def pretty(self, width: int):
-        raise NotImplementedError
-
     def __add__(self, other: "Doc") -> "Doc":
         "Sugar for horizontal concatenation."
         return Concat(self, other)
 
     def __or__(self, other: "Doc") -> "Doc":
         "Sugar for choice."
-        return Union(self, other)
+        return Choice(self, other)
+
+    def layout(self) -> str:
+        """Converts a document to a string. """
+        match self:
+            case Nil():
+                return ""
+            case Concat(lhs, rhs):
+                return lhs.layout() + rhs.layout()
+            case Text(s):
+                return s
+            case Line():
+                return "\n"
+            case Nest(i, d):
+                return Line().layout() + (" " * i) + d.layout()
+            case Choice(_, _):
+                raise Exception("TODO: non-canonical layout - did you receive this Doc from a formatter?")
+        assert False
+
+    def length(self) -> int:
+        """The length of a canonicalized document. """
+        match self:
+            case Nil():
+                return 0
+            case Concat(lhs, rhs):
+                return lhs.length() + rhs.length()
+            case Text(s):
+                return len(s)
+            case Line():
+                return 0
+            case Nest(i, d):
+                return i + d.length()
+            case Choice(_, _):
+                raise Exception("TODO: non-canonical layout - did you receive this Doc from a formatter?")
+        assert False
+
+    def fits(self, width: int) -> bool:
+        if width < 0:
+            return False
+        match self:
+            case Nil():
+                return True
+            case Line():
+                return True
+            case Text(s):
+                return len(s) <= width
+            case Concat(lhs, rhs):
+                return rhs.fits(width - lhs.length())
+            case Choice(lhs, rhs):
+                return lhs.fits(width) or rhs.fits(width)  # TODO: is this right?
+        assert False
 
     def group(self) -> "Doc":
         """Produces the layout of the doc, where the layouts may be
         compressed onto a single line."""
-        match self:
-            case Nil():
-                return Nil()
-            case Concat(lhs, rhs):
-                return lhs.group() + rhs.group()
-            case Text(s):
-                return Text(s)
-            case Line(i, x):
-                return (Text(" ") + x.flatten()) | Line(i, x)
-            case Union(d1, d2):
-                d1.group() | d2.group()
+        return self.flatten() | self
 
     def flatten(self) -> "Doc":
         """Replaces all line breaks with a single space."""
@@ -40,10 +77,13 @@ class Doc:
                 return Concat(lhs.flatten(), rhs.flatten())
             case Text(s):
                 return Text(s)
-            case Line(_, x):
+            case Line():
+                return Text(" ")
+            case Nest(_, x):
                 return Text(" ") + x.flatten()
-            case Union(d1, _):
+            case Choice(d1, _):
                 return d1.flatten()
+        assert False
 
 
 @dataclass
@@ -67,24 +107,20 @@ class Text(Doc):
 
 @dataclass
 class Line(Doc):
+    "A newline literal."
+    pass
+
+
+@dataclass
+class Nest(Doc):
     """A document on its own line, indented some number of spaces."""
     indent: int
     suffix: Doc
 
-    @staticmethod
-    def soft(i: int, sep: str, doc: Doc):
-        "Either insert a new line after the document, or separate it onto its own line."
-        return (Text(sep) + doc) | Line(i, doc)
-
-    @staticmethod
-    def softline(i: int, doc: Doc):
-        "Either insert a new line after the document, or separate it with a space."
-        return Line.soft(i, " ", doc)
-
 
 @dataclass
-class Union(Doc):
+class Choice(Doc):
     """The non-deterministic choice of two documents, both of which must flatten to
-    the same canonical document."""
+    the same canonical document.  (Wadler's Union)"""
     d1: Doc
     d2: Doc
