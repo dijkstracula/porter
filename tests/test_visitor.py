@@ -91,6 +91,13 @@ class ExprCounter(Visitor[None]):
     def _finish_sequence(self, act: terms.Sequence, stmts: list[None]):
         self.n_action_nodes += 1
 
+    def _finish_action_def(self,
+                           defn: terms.ActionDefinition,
+                           params: list[Binding[None]],
+                           returns: list[Binding[None]],
+                           action: None) -> None:
+        pass
+
 
 def test_simple_expr():
     ast = terms.BinOp(
@@ -105,7 +112,7 @@ def test_simple_expr():
 
 
 @pytest.mark.parametrize("fn", unit_tests)
-def test_visit(fn):
+def test_visit_program(fn):
     ast = compile_and_parse(fn)
     visitor = ExprCounter()
     visitor.visit_program(ast)  # Just ensure we don't throw an unimplemented node exception

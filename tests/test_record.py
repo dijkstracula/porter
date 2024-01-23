@@ -41,8 +41,8 @@ class RecordTest(unittest.TestCase):
 
         # Fields
         self.assertEqual(len(rec.fields), 2)
-        self.assertEqual(rec.fields[0], ast.Binding("x", sorts.Numeric.nat_sort()))
-        self.assertEqual(rec.fields[1], ast.Binding("y", sorts.Numeric.nat_sort()))
+        self.assertEqual(rec.fields[0], ast.Binding("x", sorts.Number.nat_sort()))
+        self.assertEqual(rec.fields[1], ast.Binding("y", sorts.Number.nat_sort()))
 
         # Actions
         self.assertEqual(len(rec.actions), 1)

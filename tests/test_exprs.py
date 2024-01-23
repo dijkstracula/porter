@@ -1,10 +1,8 @@
-from ivy import ivy_actions as iact
 from ivy import ivy_ast as iast
 from ivy import ivy_module as imod
 from ivy import logic as ilog
 
-from . import compile_toplevel, extract_after_init
-from typing import Any, Tuple
+from . import compile_annotated_expr
 
 from porter.ast import terms, sorts
 
@@ -14,22 +12,10 @@ import unittest
 
 
 class ExprTest(unittest.TestCase):
-    def compile_annotated_expr(self, sort: str, expr: str) -> Tuple[imod.Module, Any]:
-        init_act = "after init { " \
-                   f"""var test_expr: {sort} := {expr};
-                    var ensure_no_dead_code_elim: {sort} := test_expr;
-                    test_expr := ensure_no_dead_code_elim;
-                }}"""
-        (im, _) = compile_toplevel(init_act)
-
-        test_expr_assign = extract_after_init(im).args[0]
-        self.assertTrue(isinstance(test_expr_assign, iact.AssignAction))
-        assign_rhs = test_expr_assign.args[1]
-        return im, assign_rhs
 
     def test_constant(self):
         expr = "42"
-        im, compiled = self.compile_annotated_expr("nat", expr)
+        im, compiled = compile_annotated_expr("nat", expr)
         self.assertTrue(isinstance(compiled, ilog.Const))
 
         expr = expr_from_ivy(im, compiled)
@@ -37,7 +23,7 @@ class ExprTest(unittest.TestCase):
 
     def test_binop(self):
         expr = "41 + 1"
-        im, compiled = self.compile_annotated_expr("nat", expr)
+        im, compiled = compile_annotated_expr("nat", expr)
         self.assertTrue(isinstance(compiled, ilog.Apply))
 
         expr = expr_from_ivy(im, compiled)
@@ -47,7 +33,7 @@ class ExprTest(unittest.TestCase):
 
     def test_boolean_true(self):
         expr = "true"
-        im, compiled = self.compile_annotated_expr("bool", expr)
+        im, compiled = compile_annotated_expr("bool", expr)
         self.assertTrue(isinstance(compiled, ilog.And))
         self.assertEqual(len(compiled.args), 0)
 
@@ -56,7 +42,7 @@ class ExprTest(unittest.TestCase):
 
     def test_boolean_false(self):
         expr = "false"
-        im, compiled = self.compile_annotated_expr("bool", expr)
+        im, compiled = compile_annotated_expr("bool", expr)
         self.assertTrue(isinstance(compiled, ilog.Or))
         self.assertEqual(len(compiled.args), 0)
 
@@ -65,7 +51,7 @@ class ExprTest(unittest.TestCase):
 
     def test_boolean_binop(self):
         expr = "false & true & true & false"
-        im, compiled = self.compile_annotated_expr("bool", expr)
+        im, compiled = compile_annotated_expr("bool", expr)
         self.assertTrue(isinstance(compiled, ilog.And))
         self.assertEqual(len(compiled.args), 4)
 

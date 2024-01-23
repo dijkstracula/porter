@@ -6,25 +6,36 @@ from typing import Union
 
 space = Text(" ")
 soft_line = space | Line()
-comma_sep = Text(", ") | Line()
+soft_comma = Text(",") + soft_line
 
 
-def sep(d1: Doc, d2: Doc, op: Union[Doc, str] = " "):
+def sep(ds: list[Doc], op: Union[Doc, str] = " "):
+    if len(ds) == 0:
+        return Nil()
+    if len(ds) == 1:
+        return ds[0]
     if isinstance(op, str):
         op = Text(op)
-    return d1 + op + d2
+    return ds[0] + op + sep(ds[1:], op)
+
+
+def padded(op: Union[Doc, str]):
+    if isinstance(op, str):
+        op = Text(op)
+    return soft_line + op + soft_line
 
 
 def dotted(d1: Doc, d2: Doc):
-    return sep(d1, d2, ".")
+    return sep([d1, d2], ".")
 
 
 def enclosed(opened: str, d: Union[Doc, str], closed: str):
     if isinstance(d, str):
         d = Text(d)
-    soft_open = Text(opened) + soft_line  # "{ " or "{\n"
-    soft_closed = soft_line + Text(closed)  # " }" or "\n}"
-    return soft_open + d + soft_closed
+
+    single_line = Text(opened) + d + Text(closed)
+    multi_line = Text(opened) + Nest(2, d) + Text(closed)
+    return single_line | multi_line
 
 
 class BlockScope:

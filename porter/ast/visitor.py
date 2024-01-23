@@ -1,6 +1,6 @@
 from typing import Generic
 
-from .sorts import Bool, BitVec, Enumeration, Function, Numeric, Uninterpreted
+from .sorts import Bool, BitVec, Enumeration, Function, Number, Uninterpreted
 from .terms import *
 
 T = TypeVar("T")
@@ -23,11 +23,37 @@ class Visitor(Generic[T]):
     inits: list[T]
     actions: list[Binding[T]]
 
+    scopes: list[str] = []
+
     def visit_program(self, prog: Program):
         self.sorts = [self.visit_sort(s) for s in prog.sorts]
         self.individuals = [Binding(b.name, self.visit_sort(b.decl)) for b in prog.individuals]
         self.inits = [self.visit_action(a) for a in prog.inits]
-        # self. = [self.visit_action(a) for a in prog.inits]
+
+        self.actions = []
+        for binding in prog.actions:
+            name = binding.name
+            action = binding.decl
+            self.scopes.append(name)
+            self.actions.append(self.visit_action_def(action))
+            self.scopes.pop()
+
+    # Action definition
+    def visit_action_def(self, defn: ActionDefinition):
+        params = [Binding(b.name, self.visit_sort(b.decl)) for b in defn.formal_params]
+        returns = [Binding(b.name, self.visit_sort(b.decl)) for b in defn.formal_returns]
+        action = self.visit_action(defn.body)
+        pass
+
+    def _begin_action_def(self, defn: ActionDefinition):
+        pass
+
+    def _finish_action_def(self,
+                           defn: ActionDefinition,
+                           params: list[Binding[T]],
+                           returns: list[Binding[T]],
+                           action: T) -> T:
+        raise UnimplementedASTNodeHandler(ActionDefinition)
 
     # Sorts
 
@@ -44,7 +70,7 @@ class Visitor(Generic[T]):
                 domain = [self.visit_sort(d) for d in domain]
                 range = self.visit_sort(range)
                 return self._finish_function(sort, domain, range)
-            case Numeric(lo, hi):
+            case Number(lo, hi):
                 return self.numeric(lo, hi)
             case Uninterpreted():
                 return self.uninterpreted()
@@ -66,7 +92,7 @@ class Visitor(Generic[T]):
         raise UnimplementedASTNodeHandler(Function)
 
     def numeric(self, lo: Optional[int], hi: Optional[int]):
-        raise UnimplementedASTNodeHandler(Numeric)
+        raise UnimplementedASTNodeHandler(Number)
 
     def uninterpreted(self) -> T:
         raise UnimplementedASTNodeHandler(Uninterpreted)

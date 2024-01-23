@@ -24,17 +24,17 @@ class Bool(Sort):
 
 
 @dataclass
-class Numeric(Sort):
+class Number(Sort):
     lo_range: Optional[int]
     hi_range: Optional[int]
 
     @staticmethod
     def int_sort():
-        return Numeric(None, None)
+        return Number(None, None)
 
     @staticmethod
     def nat_sort():
-        return Numeric(0, None)
+        return Number(0, None)
 
 
 @dataclass
@@ -59,9 +59,9 @@ def from_ivy(sort) -> Sort:
         if name == "bool":
             return Bool()
         if name == "int":
-            return Numeric.int_sort()
+            return Number.int_sort()
         if name == "nat":
-            return Numeric.nat_sort()
+            return Number.nat_sort()
         if isinstance(sort, ilog.UninterpretedSort):
             return Uninterpreted(name)
     if hasattr(sort, "sort"):

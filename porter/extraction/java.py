@@ -1,15 +1,22 @@
 from porter.ast import Binding, sorts, terms
 from porter.ast.visitor import Visitor
-from porter.pp import Doc, Text, Nest, Concat, Choice
+from porter.pp import Doc, Text, Line, Nest, Concat, Choice, utils
 
 from typing import Optional
 
+semi = Text(";")
 
-class JavaExtractor(Visitor[Doc]):
+
+def block(contents: Doc) -> Doc:
+    return Text("{") + Nest(2, contents) + Text("}")
+
+
+class Extractor(Visitor[Doc]):
     # Sorts
 
     def bool(self):
-        raise NotImplementedError()
+        # TODO: Java sorts will need to know whether they're to be boxed or not!
+        return Text("bool")
 
     def bv(self):
         raise NotImplementedError()
@@ -21,10 +28,10 @@ class JavaExtractor(Visitor[Doc]):
         raise NotImplementedError()
 
     def numeric(self, lo: Optional[int], hi: Optional[int]):
-        raise NotImplementedError()
+        return Text("int")
 
     def uninterpreted(self):
-        raise NotImplementedError()
+        return Text("int")
 
     # Expressions
 
@@ -32,10 +39,10 @@ class JavaExtractor(Visitor[Doc]):
         return Text(rep)
 
     def _finish_apply(self, node: terms.Apply, relsym_ret: Doc, args_ret: list[Doc]):
-        raise NotImplementedError()
+        return relsym_ret + utils.enclosed("(", utils.sep(args_ret, utils.soft_comma), ")")
 
     def _finish_binop(self, node: terms.BinOp, lhs_ret: Doc, rhs_ret: Doc):
-        raise NotImplementedError()
+        return lhs_ret + utils.padded(node.op) + rhs_ret
 
     def _finish_exists(self, node: terms.Exists, vs: list[Binding[Doc]], expr: Doc):
         raise NotImplementedError()
@@ -44,13 +51,15 @@ class JavaExtractor(Visitor[Doc]):
         raise NotImplementedError()
 
     def _finish_ite(self, node: terms.Ite, test: Doc, then: Doc, els: Doc):
-        raise NotImplementedError()
+        return test + utils.padded("?") + then + utils.padded(":") + els
 
     def _finish_some(self, none: terms.Some, vs: list[Binding[Doc]], fmla: Doc):
         raise NotImplementedError()
 
     def _finish_unop(self, node: terms.UnOp, expr: Doc):
-        raise NotImplementedError()
+        if isinstance(expr, Text):
+            return Text(node.op) + expr
+        return Text(node.op) + utils.enclosed("(", expr, ")")
 
     # Actions
 
@@ -58,13 +67,13 @@ class JavaExtractor(Visitor[Doc]):
         raise NotImplementedError()
 
     def _finish_assign(self, act: terms.Assign, lhs: Doc, rhs: Doc):
-        raise NotImplementedError()
+        return lhs + utils.padded("=") + rhs + semi
 
     def _finish_assume(self, act: terms.Assume, pred: Doc):
         raise NotImplementedError()
 
     def _finish_call(self, act: terms.Call, app: Doc):
-        raise NotImplementedError()
+        return app + semi  # XXX: yes??
 
     def _finish_debug(self, act: terms.Debug, args: list[Doc]):
         raise NotImplementedError()
@@ -75,11 +84,20 @@ class JavaExtractor(Visitor[Doc]):
     def _finish_havok(self, act: terms.Havok, modifies: list[Doc]):
         raise NotImplementedError()
 
-    def _finish_if(self, act: terms.If, test: Doc, then: list[Doc], els: Optional[Doc]):
-        raise NotImplementedError()
+    def _finish_if(self, act: terms.If, test: Doc, then: Doc, els: Optional[Doc]) -> Doc:
+        if_block = Text("if (") + test + Text(")")
+        ret = if_block + utils.space + block(then)
+        if els is not None:
+            ret = ret + utils.padded(Text("else")) + block(els)
+        return ret
 
     def _finish_let(self, act: terms.Let, vardecls: list[Binding[Doc]], scope: Doc):
-        raise NotImplementedError()
+        var_docs = []
+        for binding in vardecls:
+            var = Text(binding.name)
+            sort = binding.decl
+            var_docs.append(sort + utils.space + var + semi)
+        return utils.sep(var_docs, Line()) + Line() + scope
 
-    def _finish_sequence(self, act: terms.Sequence, stmts: list[Doc]):
-        raise NotImplementedError()
+    def _finish_sequence(self, act: terms.Sequence, stmts: list[Doc]) -> Doc:
+        return utils.sep(stmts, Line())
