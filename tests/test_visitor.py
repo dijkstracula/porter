@@ -1,5 +1,5 @@
 from porter.ast import Binding, sorts, terms
-from porter.ast.visitor import Visitor
+from porter.ast.terms.visitor import Visitor
 
 from .test_programs import compile_and_parse, unit_tests
 
@@ -11,27 +11,6 @@ from typing import Optional
 class ExprCounter(Visitor[None]):
     n_expr_nodes: int = 0
     n_action_nodes: int = 0
-    n_sort_nodes: int = 0
-
-    # Sorts
-
-    def bool(self):
-        self.n_sort_nodes += 1
-
-    def bv(self):
-        self.n_sort_nodes += 1
-
-    def enum(self, discriminants: list[str]):
-        self.n_sort_nodes += 1
-
-    def _finish_function(self, node: sorts.Function, domain: list[None], range: None):
-        self.n_sort_nodes += 1
-
-    def numeric(self, lo: Optional[int], hi: Optional[int]):
-        self.n_sort_nodes += 1
-
-    def uninterpreted(self):
-        self.n_sort_nodes += 1
 
     # Expressions
 
@@ -85,7 +64,7 @@ class ExprCounter(Visitor[None]):
     def _finish_if(self, act: terms.If, test: None, then: list[None], els: Optional[None]):
         self.n_action_nodes += 1
 
-    def _finish_let(self, act: terms.Let, vardecls: list[Binding[None]], scope: None):
+    def _finish_let(self, act: terms.Let, scope: None):
         self.n_action_nodes += 1
 
     def _finish_sequence(self, act: terms.Sequence, stmts: list[None]):

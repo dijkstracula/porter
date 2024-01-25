@@ -27,8 +27,8 @@ class ExprTest(unittest.TestCase):
         action = "action inc(n: nat) returns (m: nat) = { m := n + 1 }"
         im, compiled = compile_action("inc", action)
         act = action_def_from_ivy(im, "inc", compiled)
-        self.assertEqual(act.formal_params, [porter.ast.Binding("n", sorts.Number.nat_sort())])
-        self.assertEqual(act.formal_returns, [porter.ast.Binding("m", sorts.Number.nat_sort())])
+        self.assertEqual(act.formal_params, [porter.ast.Binding("n", "nat")])
+        self.assertEqual(act.formal_returns, [porter.ast.Binding("m", "nat")])
 
         body = act.body
         assert isinstance(body, terms.Assign)

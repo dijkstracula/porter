@@ -109,7 +109,7 @@ class JavaExtractionTests(unittest.TestCase):
 
     def test_let_single_binding(self):
         stmt = terms.Let(None,
-                         [Binding("x", sorts.Number.int_sort())],
+                         [Binding("x", "nat")],
                          terms.Assign(None, terms.Constant(None, "x"), terms.Constant(None, "42")))
         extracted = self.extractor.visit_action(stmt)
         layout = naive(80, 0, extracted).layout()
@@ -118,11 +118,10 @@ class JavaExtractionTests(unittest.TestCase):
             "x = 42;"
         ]))
 
-
     def test_let_multi_binding(self):
         stmt = terms.Let(None,
-                         [Binding("x", sorts.Number.int_sort()),
-                          Binding("y", sorts.Bool())],
+                         [Binding("x", "int"),
+                          Binding("y", "bool")],
                          terms.Sequence(None, [
                              terms.Assign(None, terms.Constant(None, "x"), terms.Constant(None, "42")),
                              terms.Assign(None, terms.Constant(None, "y"), terms.Constant(None, "true"))]))

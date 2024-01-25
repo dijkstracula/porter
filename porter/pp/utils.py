@@ -9,14 +9,14 @@ soft_line = space | Line()
 soft_comma = Text(",") + soft_line
 
 
-def sep(ds: list[Doc], op: Union[Doc, str] = " "):
+def join(ds: list[Doc], op: Union[Doc, str] = " "):
     if len(ds) == 0:
         return Nil()
     if len(ds) == 1:
         return ds[0]
     if isinstance(op, str):
         op = Text(op)
-    return ds[0] + op + sep(ds[1:], op)
+    return ds[0] + op + join(ds[1:], op)
 
 
 def padded(op: Union[Doc, str]):
@@ -26,7 +26,7 @@ def padded(op: Union[Doc, str]):
 
 
 def dotted(d1: Doc, d2: Doc):
-    return sep([d1, d2], ".")
+    return join([d1, d2], ".")
 
 
 def enclosed(opened: str, d: Union[Doc, str], closed: str):

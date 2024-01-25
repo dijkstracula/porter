@@ -7,6 +7,8 @@ import warnings
 from . import compile_ivy
 from porter import ivy_shim
 from porter.ast import terms
+from porter.extraction import java
+from porter.pp.formatter import naive
 
 progdir = os.path.join(os.path.dirname(__file__), 'programs')
 
@@ -34,8 +36,12 @@ unit_tests = [os.path.join(progdir, f) for f in os.listdir(progdir) if os.path.i
 
 
 @pytest.mark.parametrize("fn", unit_tests)
-def test_isolate(fn):
-    compile_and_parse(fn)
+def test_compile_and_extract(fn):
+    prog = compile_and_parse(fn)
+
+    extractor = java.Extractor()
+    _layout = naive(80, 0, extractor.extract(prog)).layout()
+    pass
 
 
 @pytest.mark.parametrize("fn", glob_progs('ivy-ts', 'src'))

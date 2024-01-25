@@ -1,56 +1,76 @@
-from dataclasses import dataclass
-
-from typing import Optional
-
 from ivy import logic as ilog
-from ivy import ivy_module as imod
 
+from dataclasses import dataclass, field
+from typing import Optional
 
 # Sorts
 
-@dataclass
+SortName = str
+
+
+@dataclass(frozen=True)
 class Sort:
-    pass
+    def name(self):
+        raise NotImplementedError
 
 
-@dataclass
+@dataclass(frozen=True)
 class Uninterpreted(Sort):
-    name: str
+    sort_name: str
+
+    def name(self):
+        return self.sort_name
 
 
-@dataclass
+@dataclass(frozen=True)
 class Bool(Sort):
-    pass
+    def name(self):
+        return "bool"
 
 
-@dataclass
+@dataclass(frozen=True)
 class Number(Sort):
+    sort_name: str
     lo_range: Optional[int]
     hi_range: Optional[int]
 
     @staticmethod
     def int_sort():
-        return Number(None, None)
+        return Number("int", None, None)
 
     @staticmethod
     def nat_sort():
-        return Number(0, None)
+        return Number("nat", 0, None)
+
+    def name(self):
+        return self.sort_name
 
 
-@dataclass
+@dataclass(frozen=True)
 class BitVec(Sort):
+    sort_name: str
     width: int
 
+    def name(self):
+        return self.sort_name
 
-@dataclass
+
+@dataclass(frozen=True)
 class Enumeration(Sort):
-    discriminants: list[str]
+    sort_name: str
+    discriminants: tuple[str, ...]
+
+    def name(self):
+        return self.sort_name
 
 
-@dataclass
+@dataclass(frozen=True)
 class Function(Sort):
     domain: list[Sort]
     range: Sort
+
+    def name(self):
+        return NotImplementedError
 
 
 def from_ivy(sort) -> Sort:
@@ -64,11 +84,11 @@ def from_ivy(sort) -> Sort:
             return Number.nat_sort()
         if isinstance(sort, ilog.UninterpretedSort):
             return Uninterpreted(name)
+        if isinstance(sort, ilog.EnumeratedSort):
+            discriminants = tuple([str(x) for x in sort.extension])
+            return Enumeration(name, discriminants)
     if hasattr(sort, "sort"):
         return from_ivy(sort.sort)
-    if isinstance(sort, ilog.EnumeratedSort):
-        discriminants = [str(x) for x in sort.extension]
-        return Enumeration(discriminants)
     if isinstance(sort, ilog.FunctionSort):
         domain = [from_ivy(s) for s in sort.domain]
         ret = from_ivy(sort.range)

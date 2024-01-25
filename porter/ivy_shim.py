@@ -12,6 +12,7 @@ from ivy import ivy_module as imod
 
 from . import ast
 from .ast import Binding, sorts, terms
+from .ast.sorts import SortName
 
 
 def compile_progtext(path: Path) -> iart.AnalysisGraph:
@@ -31,9 +32,9 @@ def handle_isolate(path: Path):
         print(im.sort_destructors)
 
 
-def binding_from_ivy_const(c: ilog.Const) -> Binding[sorts.Sort]:
+def binding_from_ivy_const(c: ilog.Const) -> Binding[sorts.SortName]:
     name = c.name
-    sort = sorts.from_ivy(c.sort)
+    sort = sorts.from_ivy(c.sort).name()
     return Binding(name, sort)
 
 
@@ -320,7 +321,7 @@ def record_from_ivy(im: imod.Module, name: str) -> terms.Record:
 
     fields = []
     for c in im.sort_destructors[name]:
-        f = binding_from_ivy_const(c)
+        f = Binding(c.name, sorts.from_ivy(c.sort))
         f.name = strip_prefixes([name], ".", f.name)
         assert isinstance(f.decl, sorts.Function)
         f.decl = f.decl.range

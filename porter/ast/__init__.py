@@ -2,7 +2,7 @@ from dataclasses import dataclass, field
 
 from ivy import ivy_utils as iu
 
-from .sorts import Sort
+from porter.ast import sorts
 
 from typing import Any, Generic, Optional, TypeVar
 
@@ -40,7 +40,7 @@ class AST:
                 f"What is a lineno?  It's a {type(self._ivy_node.lineno)} as opposed to an iu.LocationTuple")
         return Position.from_ivy(self._ivy_node.lineno)
 
-    def sort(self) -> Optional[Sort]:
+    def sort(self) -> Optional[sorts.Sort]:
         if self._ivy_node is None:
             return None
         if not hasattr(self._ivy_node, 'sort'):

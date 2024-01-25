@@ -1,7 +1,7 @@
 from typing import Generic
 
-from .sorts import Bool, BitVec, Enumeration, Function, Number, Uninterpreted
-from .terms import *
+from porter.ast.sorts import Bool, BitVec, Enumeration, Function, Number, Uninterpreted
+from porter.ast.terms import *
 
 T = TypeVar("T")
 
@@ -16,9 +16,12 @@ class UnimplementedASTNodeHandler(Exception):
 
 # noinspection PyMethodMayBeStatic,PyShadowingBuiltins
 class Visitor(Generic[T]):
+    # Technically the Ivy program should give us these trivial sorts too, but manually inserting them here
+    # simplifies writing tests that only operate on subprograms.
+    sorts: dict[str, Sort] = {"int": Number.int_sort(), "nat": Number.nat_sort(), "bool": Bool()}
+
     # These are all the fields in a Program.  Feels weird to accumulate them
     # up mutably like this, but ooooh well.
-    sorts: list[T]
     individuals: list[Binding[T]]
     inits: list[T]
     actions: list[Binding[T]]
@@ -26,8 +29,8 @@ class Visitor(Generic[T]):
     scopes: list[str] = []
 
     def visit_program(self, prog: Program):
-        self.sorts = [self.visit_sort(s) for s in prog.sorts]
-        self.individuals = [Binding(b.name, self.visit_sort(b.decl)) for b in prog.individuals]
+        self.sorts = {s.name(): s for s in prog.sorts}
+        self.individuals = [Binding(b.name, self._constant(b.decl)) for b in prog.individuals]
         self.inits = [self.visit_action(a) for a in prog.inits]
 
         self.actions = []
@@ -40,8 +43,8 @@ class Visitor(Generic[T]):
 
     # Action definition
     def visit_action_def(self, defn: ActionDefinition):
-        params = [Binding(b.name, self.visit_sort(b.decl)) for b in defn.formal_params]
-        returns = [Binding(b.name, self.visit_sort(b.decl)) for b in defn.formal_returns]
+        params = [Binding(b.name, self._constant(b.decl)) for b in defn.formal_params]
+        returns = [Binding(b.name, self._constant(b.decl)) for b in defn.formal_returns]
         action = self.visit_action(defn.body)
         pass
 
@@ -54,48 +57,6 @@ class Visitor(Generic[T]):
                            returns: list[Binding[T]],
                            action: T) -> T:
         raise UnimplementedASTNodeHandler(ActionDefinition)
-
-    # Sorts
-
-    def visit_sort(self, sort: Sort) -> T:
-        match sort:
-            case Bool():
-                return self.bool()
-            case BitVec(width):
-                return self.bv(width)
-            case Enumeration(discs):
-                return self.enum(discs)
-            case Function(domain, range):
-                self._begin_function(sort)
-                domain = [self.visit_sort(d) for d in domain]
-                range = self.visit_sort(range)
-                return self._finish_function(sort, domain, range)
-            case Number(lo, hi):
-                return self.numeric(lo, hi)
-            case Uninterpreted():
-                return self.uninterpreted()
-        raise Exception(f"TODO: {sort}")
-
-    def bool(self) -> T:
-        raise UnimplementedASTNodeHandler(Bool)
-
-    def bv(self, width: int) -> T:
-        raise UnimplementedASTNodeHandler(BitVec)
-
-    def enum(self, discriminants: list[str]):
-        raise UnimplementedASTNodeHandler(Enum)
-
-    def _begin_function(self, node: Function):
-        pass
-
-    def _finish_function(self, node: Function, domain: list[T], range: T) -> T:
-        raise UnimplementedASTNodeHandler(Function)
-
-    def numeric(self, lo: Optional[int], hi: Optional[int]):
-        raise UnimplementedASTNodeHandler(Number)
-
-    def uninterpreted(self) -> T:
-        raise UnimplementedASTNodeHandler(Uninterpreted)
 
     # Expressions
 
@@ -115,12 +76,12 @@ class Visitor(Generic[T]):
                 return self._constant(rep)
             case Exists(_, vars, expr):
                 self._begin_exists(node)
-                vars = [Binding(b.name, self.visit_sort(b.decl)) for b in vars]
+                vars = [Binding(b.name, self._constant(b.decl)) for b in vars]
                 expr = self.visit_expr(expr)
                 return self._finish_exists(node, vars, expr)
             case Forall(_, vars, expr):
                 self._begin_forall(node)
-                vars = [Binding(b.name, self.visit_sort(b.decl)) for b in vars]
+                vars = [Binding(b.name, self._constant(b.decl)) for b in vars]
                 expr = self.visit_expr(expr)
                 return self._finish_forall(node, vars, expr)
             case Ite(_, test, then, els):
@@ -131,7 +92,7 @@ class Visitor(Generic[T]):
                 return self._finish_ite(node, test, then, els)
             case Some(_, vars, fmla, _strat):
                 self._begin_some(node)
-                vars = [Binding(b.name, self.visit_sort(b.decl)) for b in vars]
+                vars = [Binding(b.name, self._constant(b.decl)) for b in vars]
                 fmla = self.visit_expr(fmla)
                 return self._finish_some(node, vars, fmla)
             case UnOp(_, _op, expr):
@@ -227,9 +188,8 @@ class Visitor(Generic[T]):
                 return self._finish_if(node, test, then, els)
             case Let(_, vardecls, scope):
                 self._begin_let(node)
-                vardecls = [Binding(b.name, self.visit_sort(b.decl)) for b in vardecls]
                 scope = self.visit_action(scope)
-                return self._finish_let(node, vardecls, scope)
+                return self._finish_let(node, scope)
             case Native(_, _fmt, args):
                 self._begin_native(node)
                 args = [self.visit_expr(arg) for arg in args]
@@ -302,7 +262,7 @@ class Visitor(Generic[T]):
     def _begin_let(self, act: Let):
         pass
 
-    def _finish_let(self, act: Let, vardecls: list[Binding[T]], scope: T):
+    def _finish_let(self, act: Let, scope: T):
         raise UnimplementedASTNodeHandler(Let)
 
     def _begin_native(self, act: Native):
