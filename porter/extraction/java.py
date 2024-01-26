@@ -172,5 +172,14 @@ class Extractor(TermVisitor[Doc]):
             var_docs.append(sort + utils.space + var + semi)
         return utils.join(var_docs, Line()) + Line() + scope
 
+    def _finish_logical_assign(self, act: terms.LogicalAssign, assn: Doc):
+        ret = Nil()
+        for v in act.vars:
+            ret = ret + Text(v.sort.name() + ".forEach(") + Text(v.rep) + Text (" => { ")
+        ret = ret + assn
+        for _ in act.vars:
+            ret = ret + Text(" })")
+        return ret
+
     def _finish_sequence(self, act: terms.Sequence, stmts: list[Doc]) -> Doc:
         return utils.join(stmts, Line())

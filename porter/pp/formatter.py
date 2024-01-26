@@ -55,8 +55,6 @@ def simpl(d: Doc) -> Doc:
                     return Line()
                 case Nest(j, d2):
                     return Nest(i + j, d2)
-                case Concat(lhs, rhs):
-                    return Concat(Nest(i, lhs), Nest(i, rhs))
                 case d:
                     return Nest(i, d)
         case Choice(d1, d2):

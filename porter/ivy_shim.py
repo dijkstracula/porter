@@ -63,7 +63,7 @@ def expr_from_const(_im: imod.Module, c: ilog.Const) -> terms.Constant:
 
 
 def expr_from_var(_im: imod.Module, v: ilog.Var) -> terms.Var:
-    return terms.Var(v, v.name)
+    return terms.Var(v, v.name, sorts.from_ivy(v.sort))
 
 
 def expr_from_atom(im: imod.Module, expr: iast.Atom) -> terms.Apply:
@@ -230,6 +230,13 @@ def assert_from_ivy(im: imod.Module, iaction: iact.AssumeAction) -> terms.Assert
 def assign_from_ivy(im: imod.Module, iaction: iact.AssignAction) -> terms.Assign:
     lhs = expr_from_ivy(im, iaction.args[0])
     rhs = expr_from_ivy(im, iaction.args[1])
+    assn = terms.Assign(iaction, lhs, rhs)
+
+    # if the LHS contains an (implicitly-declared) Var, then this means
+    # we have to lift the assign into a LogicalAssign.
+    lassn = terms.LogicalAssign.maybe_from_assign(assn)
+    if lassn is not None:
+        return lassn
     return terms.Assign(iaction, lhs, rhs)
 
 

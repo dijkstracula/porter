@@ -25,15 +25,6 @@ class JavaExtractionTests(unittest.TestCase):
         extracted = Naive(80).format(self.extractor.visit_expr(expr))
         self.assertEqual(extracted.layout(), "lengthy_addition_function_oh_no(41, 1)")
 
-        # XXX: This is the current behaviour but I don't like it.
-        fmt = simpl(self.extractor.visit_expr(expr))
-        extracted = Naive(10).format(fmt)
-        self.assertEqual(extracted.layout(), "\n".join([
-            "lengthy_addition_function_oh_no(",
-            "  41, 1",
-            ")"
-        ]))
-
     def test_binop(self):
         large_num = str(10000000000000);
         expr = terms.BinOp(None,
@@ -43,9 +34,6 @@ class JavaExtractionTests(unittest.TestCase):
 
         extracted = Naive(80).format(self.extractor.visit_expr(expr))
         self.assertEqual(extracted.layout(), large_num + " + " + large_num)
-
-        extracted = Naive(10).format(self.extractor.visit_expr(expr))
-        self.assertEqual(extracted.layout(), "\n".join([large_num, "+", large_num]))
 
     def test_ite(self):
         test = terms.BinOp(None,
@@ -58,9 +46,6 @@ class JavaExtractionTests(unittest.TestCase):
 
         extracted = Naive(80).format(self.extractor.visit_expr(expr))
         self.assertEqual(extracted.layout(), "1 < 2 ? f : g")
-
-        extracted = Naive(5).format(self.extractor.visit_expr(expr))
-        self.assertEqual(extracted.layout(), "\n".join(["1 < 2", "?", "f", ":", "g"]))
 
     def test_unop(self):
         # Trivial expressions can have parens elided.

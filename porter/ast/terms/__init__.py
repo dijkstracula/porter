@@ -25,6 +25,7 @@ class Constant(Expr):
 @dataclass
 class Var(Expr):
     rep: str
+    sort: Sort
 
 
 @dataclass
@@ -96,6 +97,23 @@ class Assert(Action):
 class Assign(Action):
     lhs: Expr
     rhs: Expr
+
+
+@dataclass
+class LogicalAssign(Action):
+    vars: list[Var]
+    assign: Assign
+
+    @staticmethod
+    def maybe_from_assign(a: Assign) -> Optional["LogicalAssign"]:
+        """ If the given assignment involves an application involving a logical variable, lift it into
+        its corresponding LogicalAssignment."""
+        match a.lhs:
+            case Apply(ivy, _relsym, args):
+                lvars = [a for a in args if isinstance(a, Var)]
+                if len(lvars) > 0:
+                    return LogicalAssign(ivy, lvars, a)
+        return None
 
 
 @dataclass

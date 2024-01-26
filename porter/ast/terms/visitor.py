@@ -191,10 +191,14 @@ class Visitor(Generic[T]):
                 if els is not None:
                     els = self.visit_action(els)
                 return self._finish_if(node, test, then, els)
-            case Let(_, vardecls, scope):
+            case Let(_, _vardecls, scope):
                 self._begin_let(node)
                 scope = self.visit_action(scope)
                 return self._finish_let(node, scope)
+            case LogicalAssign(_, _vardecls, assign):
+                self._begin_logical_assign(node)
+                assign = self.visit_action(assign)
+                return self._finish_logical_assign(node, assign)
             case Native(_, _fmt, args):
                 self._begin_native(node)
                 args = [self.visit_expr(arg) for arg in args]
@@ -269,6 +273,12 @@ class Visitor(Generic[T]):
 
     def _finish_let(self, act: Let, scope: T):
         raise UnimplementedASTNodeHandler(Let)
+
+    def _begin_logical_assign(self, act: LogicalAssign):
+        pass
+
+    def _finish_logical_assign(self, act: LogicalAssign, assn: T):
+        raise UnimplementedASTNodeHandler(LogicalAssign)
 
     def _begin_native(self, act: Native):
         pass

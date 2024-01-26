@@ -103,3 +103,16 @@ class ExprTest(unittest.TestCase):
         assert isinstance(act, terms.Sequence)
         assert isinstance(act.stmts[0], terms.Assign)
         assert isinstance(act.stmts[1], terms.Let)
+
+    def test_logical_assign_lift(self):
+        action = terms.Assign(None,
+                              terms.Apply(None, "f", [terms.Constant(None, "x")]),
+                              terms.Constant(None, "false"))
+        self.assertIsNone(terms.LogicalAssign.maybe_from_assign(action))
+
+        action = terms.Assign(None,
+                              terms.Apply(None, "f", [terms.Var(None, "X")]),
+                              terms.Constant(None, "false"))
+        laction = terms.LogicalAssign.maybe_from_assign(action)
+        self.assertIsNotNone(laction)
+        self.assertEqual(laction.vars, [terms.Var(None, "X")])
