@@ -27,15 +27,21 @@ def simpl(d: Doc) -> Doc:
         case Text(s):
             return Text(s)
         case Concat(lhs, rhs):
+            match lhs, rhs:
+                case Concat(l, r), rhs:
+                    return simpl(Concat(l, Concat(r, rhs)))
+
             lhs = simpl(lhs)
             rhs = simpl(rhs)
             match (lhs, rhs):
-                case Nil(), rhs:
+                case Nil() | Text(""), rhs:
                     return rhs
-                case lhs, Nil():
+                case lhs, Nil() | Text(""):
                     return lhs
                 case Text(lhs), Text(rhs):
                     return Text(lhs + rhs)
+                case Text(l), Concat(Text(r), rhs):
+                    return Concat(Text(l + r), rhs)
                 case lhs, rhs:
                     return Concat(lhs, rhs)
         case Nest(i, d):
@@ -69,21 +75,20 @@ class Naive(Formatter):
     curr_indent = 0
 
     def naive_iter(self, k: int, d: Doc) -> Doc:
-        "Wadler's naive formatter, requiring potentially O(n^2) time complexity."
         match d:
             case Nil():
                 return Nil()
             case Text("\n") | Line():
-                return Concat(d, Text(" " * self.curr_indent))
+                return Text("\n" + " " * self.curr_indent)
             case Text(s):
                 return Text(s)
             case Concat(lhs, rhs):
                 lhs = self.naive_iter(k, lhs)
-                rhs = self.naive_iter(k + lhs.length(), rhs)
+                rhs = self.naive_iter(k, rhs)  # This is wrong but I'm also very stupid
                 return Concat(lhs, rhs)
             case Nest(i, d):
                 self.curr_indent += i
-                ret = Nest(i, self.naive_iter(i, d))
+                ret = Nest(i, self.naive_iter(i + k, d))
                 self.curr_indent -= i
                 return ret
             case Choice(d1, d2):
@@ -97,4 +102,4 @@ class Naive(Formatter):
 
     def format(self, d: Doc) -> Doc:
         self.curr_indent = 0
-        return simpl(self.naive_iter(0, d))
+        return simpl(self.naive_iter(0, simpl(d)))

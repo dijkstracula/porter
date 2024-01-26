@@ -98,7 +98,7 @@ class Extractor(TermVisitor[Doc]):
 
         inits = utils.join(self.inits, "\n")
 
-        return sorts + Text("\n\n\n") + inits
+        return sorts + Line() + inits
 
     # Expressions
 

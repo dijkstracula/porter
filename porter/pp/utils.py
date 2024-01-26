@@ -14,6 +14,9 @@ def join(ds: list[Doc], op: Union[Doc, str] = " "):
         return Nil()
     if len(ds) == 1:
         return ds[0]
+    if isinstance(ds[0], Nil):
+        return join(ds[1:], op)
+
     if isinstance(op, str):
         op = Text(op)
     return ds[0] + op + join(ds[1:], op)
@@ -36,13 +39,3 @@ def enclosed(opened: str, d: Union[Doc, str], closed: str):
     single_line = Text(opened) + d + Text(closed)
     multi_line = Text(opened) + Line() + Nest(2, d) + Line() + Text(closed)
     return single_line | multi_line
-
-
-class BlockScope:
-    indent: int
-
-    def __init__(self, indent=2):
-        self.indent = indent
-
-    def curly_wrapped(self, d: Doc) -> Doc:
-        return enclosed("{", Nest(self.indent, d), "}")

@@ -40,7 +40,8 @@ def test_compile_and_extract(fn):
     prog = compile_and_parse(fn)
 
     extractor = java.Extractor()
-    _layout = Naive(80).format(extractor.extract(prog)).layout()
+    formatted = Naive(80).format(extractor.extract(prog))
+    _layout = formatted.layout()
     pass
 
 

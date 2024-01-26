@@ -35,6 +35,10 @@ class Doc:
         match self:
             case Nil():
                 return 0
+            # Irritating hack: because a Concat might span multiple lines, only eat
+            # as much of the Doc until we catch up with that lewline
+            case Concat(Line(), _):
+                return 0
             case Concat(lhs, rhs):
                 return lhs.length() + rhs.length()
             case Text(s):
@@ -54,6 +58,8 @@ class Doc:
             case Nil():
                 return True
             case Line():
+                return True
+            case Concat(Line(), _):
                 return True
             case Text(s):
                 return len(s) <= width
