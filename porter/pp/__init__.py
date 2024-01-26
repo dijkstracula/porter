@@ -25,7 +25,7 @@ class Doc:
             case Line():
                 return "\n"
             case Nest(i, d):
-                return Line().layout() + (" " * i) + d.layout() + "\n"
+                return " " * i + d.layout()
             case Choice(_, _):
                 raise Exception("TODO: non-canonical layout - did you receive this Doc from a formatter?")
         assert False

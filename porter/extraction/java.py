@@ -14,7 +14,33 @@ soft_close_bracket = utils.soft_line + Text("}")
 
 
 def block(contents: Doc) -> Doc:
-    return Text("{") + Nest(2, contents) + Text("}")
+    return Text("{") + Line() + Nest(2, contents) + Line() + Text("}")
+
+
+def canonicalize_identifier(s: str) -> str:
+    return s.replace(".", "__")
+
+
+class BoxedSort(SortVisitor[Doc]):
+    def bool(self):
+        return Text("Boolean")
+
+    def bv(self, name: str, width: int):
+        if width > 64:
+            raise Exception("BV too wide")
+        return Text("Long")
+
+    def enum(self, name: str, discriminants: list[str]):
+        return Text(name)
+
+    def _finish_function(self, node: sorts.Function, domain: list[Doc], range: Doc):
+        return Text("Action") + Text(str(len(domain) + 1))  # TODO: generics
+
+    def numeric(self, name: str, lo: Optional[int], hi: Optional[int]):
+        return Text("Integer")
+
+    def uninterpreted(self, name: str):
+        return Text("Integer")
 
 
 class UnboxedSort(SortVisitor[Doc]):
@@ -77,10 +103,13 @@ class Extractor(TermVisitor[Doc]):
     # Expressions
 
     def _constant(self, rep: str) -> Doc:
-        return Text(rep)
+        return Text(canonicalize_identifier(rep))
+
+    def _var(self, rep: str) -> Doc:
+        return Text(canonicalize_identifier(rep))
 
     def _finish_apply(self, node: terms.Apply, relsym_ret: Doc, args_ret: list[Doc]):
-        return relsym_ret + utils.enclosed("(", utils.join(args_ret, utils.soft_comma), ")")
+        return relsym_ret + utils.enclosed("(", utils.join(args_ret, ", "), ")")
 
     def _finish_binop(self, node: terms.BinOp, lhs_ret: Doc, rhs_ret: Doc):
         return lhs_ret + utils.padded(node.op) + rhs_ret

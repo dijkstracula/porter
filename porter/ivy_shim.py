@@ -52,23 +52,23 @@ def expr_from_apply(im: imod.Module, app: ilog.Apply) -> terms.Expr:
         lhs = expr_from_ivy(im, app.args[0])
         rhs = expr_from_ivy(im, app.args[1])
         return terms.BinOp(app, lhs, app.func.name, rhs)
-    func = expr_from_ivy(im, app.args[0])
-    args = [expr_from_ivy(im, a) for a in app.args[1:]]
+    func = app.func.name  # expr_from_ivy(im, app.args[0])
+    args = [expr_from_ivy(im, a) for a in app.args]
+
     return terms.Apply(app, func, args)
 
 
-def expr_from_const(im: imod.Module, c: ilog.Const) -> terms.Constant:
+def expr_from_const(_im: imod.Module, c: ilog.Const) -> terms.Constant:
     return terms.Constant(c, c.name)
 
 
-def expr_from_var(im: imod.Module, v: ilog.Var) -> terms.Constant:
-    return terms.Constant(v, v.name)
+def expr_from_var(_im: imod.Module, v: ilog.Var) -> terms.Var:
+    return terms.Var(v, v.name)
 
 
 def expr_from_atom(im: imod.Module, expr: iast.Atom) -> terms.Apply:
-    relsym = terms.Constant(None, expr.rep)
     args = [expr_from_ivy(im, a) for a in expr.args]
-    return terms.Apply(expr, relsym, args)
+    return terms.Apply(expr, expr.rep, args)
 
 
 def expr_from_or(im: imod.Module, expr: ilog.Or) -> terms.Expr:
@@ -151,11 +151,6 @@ def expr_from_some(im: imod.Module, expr: iast.Some) -> terms.Some:
 
 def expr_from_ivy(im: imod.Module, expr) -> terms.Expr:
     # Terminals
-    if isinstance(expr, str):
-        # I don't understand why Ivy can give us a str in this case,
-        # but this is probably the best way to deal with it.
-        return terms.Constant(None, expr)
-
     if isinstance(expr, ilog.Const):
         return expr_from_const(im, expr)
     if isinstance(expr, ilog.Var):

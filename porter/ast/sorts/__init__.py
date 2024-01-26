@@ -70,7 +70,8 @@ class Function(Sort):
     range: Sort
 
     def name(self):
-        return NotImplementedError
+        arity = len(self.domain) + 1
+        return f"Action[{arity}]"
 
 
 def from_ivy(sort) -> Sort:

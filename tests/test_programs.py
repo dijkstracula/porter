@@ -8,7 +8,7 @@ from . import compile_ivy
 from porter import ivy_shim
 from porter.ast import terms
 from porter.extraction import java
-from porter.pp.formatter import naive
+from porter.pp.formatter import Naive
 
 progdir = os.path.join(os.path.dirname(__file__), 'programs')
 
@@ -40,7 +40,7 @@ def test_compile_and_extract(fn):
     prog = compile_and_parse(fn)
 
     extractor = java.Extractor()
-    _layout = naive(80, 0, extractor.extract(prog)).layout()
+    _layout = Naive(80).format(extractor.extract(prog)).layout()
     pass
 
 

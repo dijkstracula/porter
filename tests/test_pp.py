@@ -1,5 +1,5 @@
 from porter.pp import *
-from porter.pp.formatter import naive
+from porter.pp.formatter import Naive
 from porter.pp.utils import enclosed
 
 import unittest
@@ -24,9 +24,9 @@ class PrettyASTTests(unittest.TestCase):
         ast = Text("if 1 < 2") + Text(" ") + enclosed("{ ", "some_lengthy_lhs_var := some_complicated_rhs_var", " }")
 
         # Here, we have plenty of room.
-        canonical = naive(100, 0, ast)
+        canonical = Naive(100).format(ast)
         self.assertEqual(canonical.layout(), "if 1 < 2 { some_lengthy_lhs_var := some_complicated_rhs_var }")
 
         # Here, we have hardly any room.
-        canonical = naive(80, 70, ast)
+        canonical = Naive(10).format(ast)
         self.assertEqual(canonical.layout(), "if 1 < 2 { \n  some_lengthy_lhs_var := some_complicated_rhs_var\n }")

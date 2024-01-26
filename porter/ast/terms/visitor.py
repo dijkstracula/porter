@@ -64,7 +64,7 @@ class Visitor(Generic[T]):
         match node:
             case Apply(_, relsym, args):
                 self._begin_apply(node)
-                relsym = self.visit_expr(relsym)
+                relsym = self._constant(relsym)
                 args = [self.visit_expr(arg) for arg in args]
                 return self._finish_apply(node, relsym, args)
             case BinOp(_, lhs, _op, rhs):
@@ -74,6 +74,8 @@ class Visitor(Generic[T]):
                 return self._finish_binop(node, lhs_ret, rhs_ret)
             case Constant(_, rep):
                 return self._constant(rep)
+            case Var(_, rep):
+                return self._var(rep)
             case Exists(_, vars, expr):
                 self._begin_exists(node)
                 vars = [Binding(b.name, self._constant(b.decl)) for b in vars]
@@ -103,6 +105,9 @@ class Visitor(Generic[T]):
 
     def _constant(self, rep: str) -> T:
         raise UnimplementedASTNodeHandler(Constant)
+
+    def _var(self, rep: str) -> T:
+        raise UnimplementedASTNodeHandler(Var)
 
     def _begin_apply(self, node: Apply):
         pass
