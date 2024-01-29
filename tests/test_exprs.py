@@ -6,7 +6,7 @@ from . import compile_annotated_expr
 
 from porter.ast import terms, sorts
 
-from porter.ivy_shim import expr_from_ivy
+from porter.ivy.shims import expr_from_ivy
 
 import unittest
 

@@ -5,7 +5,7 @@ import pytest
 import warnings
 
 from . import compile_ivy
-from porter import ivy_shim
+from porter.ivy import shims
 from porter.ast import terms
 from porter.extraction import java
 from porter.pp.formatter import Naive
@@ -19,7 +19,7 @@ def compile_and_parse(fn) -> terms.Program:
     with open(fn) as f:
         im, ag = compile_ivy(f)
     os.chdir(oldcwd)
-    return ivy_shim.program_from_ivy(im)
+    return shims.program_from_ivy(im)
 
 
 def glob_progs(*paths):

@@ -10,9 +10,9 @@ from ivy import ivy_isolate as iiso
 from ivy import logic as ilog
 from ivy import ivy_module as imod
 
-from . import ast
-from .ast import Binding, sorts, terms
-from .ast.sorts import SortName
+from porter import ast
+from porter.ast import Binding, sorts, terms
+from porter.ast.sorts import SortName
 
 
 def compile_progtext(path: Path) -> iart.AnalysisGraph:

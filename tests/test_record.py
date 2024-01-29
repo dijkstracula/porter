@@ -1,4 +1,5 @@
-from porter import ast, ivy_shim
+from porter import ast
+from porter.ivy import shims
 from porter.ast import sorts, terms
 
 from . import compile_toplevel
@@ -8,11 +9,11 @@ import unittest
 
 class RecordTest(unittest.TestCase):
     def test_strip_prefix(self):
-        self.assertEqual(ivy_shim.strip_prefixes([], ".", "a.b.c"), "a.b.c")
-        self.assertEqual(ivy_shim.strip_prefixes(["b"], ".", "a.b.c"), "a.b.c")
-        self.assertEqual(ivy_shim.strip_prefixes(["a"], ".", "a.b.c"), "b.c")
-        self.assertEqual(ivy_shim.strip_prefixes(["a", "b"], ".", "a.b.c"), "c")
-        self.assertEqual(ivy_shim.strip_prefixes(["a", "z"], ".", "a.b.c"), "a.b.c")
+        self.assertEqual(shims.strip_prefixes([], ".", "a.b.c"), "a.b.c")
+        self.assertEqual(shims.strip_prefixes(["b"], ".", "a.b.c"), "a.b.c")
+        self.assertEqual(shims.strip_prefixes(["a"], ".", "a.b.c"), "b.c")
+        self.assertEqual(shims.strip_prefixes(["a", "b"], ".", "a.b.c"), "c")
+        self.assertEqual(shims.strip_prefixes(["a", "z"], ".", "a.b.c"), "a.b.c")
 
     def test_record_conversion(self):
         cls = """class foo = { 
@@ -36,7 +37,7 @@ class RecordTest(unittest.TestCase):
         self.assertTrue(fields[0].name == "foo.x")
         self.assertTrue(fields[1].name == "foo.y")
 
-        rec = ivy_shim.record_from_ivy(im, "foo")
+        rec = shims.record_from_ivy(im, "foo")
         assert isinstance(rec, terms.Record)
 
         # Fields

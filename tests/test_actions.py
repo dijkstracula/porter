@@ -3,11 +3,11 @@ from ivy import ivy_module as imod
 
 import porter.ast
 from . import compile_toplevel, extract_after_init
-from typing import Any, Tuple
+from typing import Tuple
 
-from porter.ast import terms, sorts
+from porter.ast import terms
 
-from porter.ivy_shim import action_def_from_ivy, action_from_ivy
+from porter.ivy.shims import action_def_from_ivy, action_from_ivy
 
 import unittest
 

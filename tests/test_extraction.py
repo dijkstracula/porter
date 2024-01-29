@@ -1,6 +1,6 @@
-from porter import ivy_shim
-from porter.ast import Binding, sorts, terms
-from porter.pp.formatter import simpl, Naive
+from porter.ivy import shims
+from porter.ast import Binding, terms
+from porter.pp.formatter import Naive
 from porter.extraction import java
 
 from . import compile_annotated_expr
@@ -13,7 +13,7 @@ class JavaExtractionTests(unittest.TestCase):
 
     def test_constant(self):
         im, compiled = compile_annotated_expr("nat", "42")
-        expr = ivy_shim.expr_from_ivy(im, compiled)
+        expr = shims.expr_from_ivy(im, compiled)
         extracted = Naive(80).format(self.extractor.visit_expr(expr))
         self.assertEqual(extracted.layout(), "42")
 
