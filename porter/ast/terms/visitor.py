@@ -1,6 +1,6 @@
 from typing import Generic
 
-from porter.ast.sorts import Bool, BitVec, Enumeration, Function, Number, Uninterpreted
+from porter.ast.sorts import Bool, BitVec, Enumeration, ExtensionalRelation, Function, Number, Uninterpreted
 from porter.ast.terms import *
 
 T = TypeVar("T")
@@ -42,6 +42,7 @@ class Visitor(Generic[T]):
             self.scopes.pop()
 
     # Action definition
+    # TODO: actions vs non-extensional relations???
     def visit_action_def(self, defn: ActionDefinition):
         params = [Binding(b.name, self._constant(b.decl)) for b in defn.formal_params]
         returns = [Binding(b.name, self._constant(b.decl)) for b in defn.formal_returns]
@@ -57,6 +58,16 @@ class Visitor(Generic[T]):
                            returns: list[Binding[T]],
                            action: T) -> T:
         raise UnimplementedASTNodeHandler(ActionDefinition)
+
+    def _begin_extensional_relation(self, rel: ExtensionalRelation):
+        pass
+
+    def _finish_extensional_relation(self,
+                           defn: ActionDefinition,
+                           dom: list[Binding[T]],
+                           rng: T,
+                           rel: T) -> T:
+        raise UnimplementedASTNodeHandler(ExtensionalRelation)
 
     # Expressions
 

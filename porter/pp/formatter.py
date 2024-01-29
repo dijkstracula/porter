@@ -67,6 +67,7 @@ def simpl(d: Doc) -> Doc:
                     return d2
                 case d1, d2:
                     return Choice(d1, d2)
+        case _: raise Exception(f"TODO: {d.__class__.name()}")
 
 
 class Naive(Formatter):

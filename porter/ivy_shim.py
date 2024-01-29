@@ -227,7 +227,7 @@ def assert_from_ivy(im: imod.Module, iaction: iact.AssumeAction) -> terms.Assert
     return terms.Assert(im, pred)
 
 
-def assign_from_ivy(im: imod.Module, iaction: iact.AssignAction) -> terms.Assign:
+def assign_from_ivy(im: imod.Module, iaction: iact.AssignAction) -> terms.Action:
     lhs = expr_from_ivy(im, iaction.args[0])
     rhs = expr_from_ivy(im, iaction.args[1])
     assn = terms.Assign(iaction, lhs, rhs)
@@ -368,11 +368,39 @@ def action_def_from_ivy(im: imod.Module, name: str, iaction: iact.Action) -> ter
     return terms.ActionDefinition(iaction, kind, formal_params, formal_returns, body)
 
 
+# XXX: This should live elsewhere - all other sorts are handled via sorts.from_ivy()...
+def ext_relation_from_ivy(im: imod.Module, iaction: iact.Action) -> sorts.ExtensionalRelation:
+    formal_params = []
+    for p in iaction.formal_params:
+        binding = binding_from_ivy_const(p)
+        formal_params.append(binding.decl)
+
+    if len(iaction.formal_returns) == 0:
+        rng = sorts.Bool()
+
+    elif len(iaction.formal_returns) == 1:
+        ret = iaction.formal_returns[0]
+        binding = Binding(ret.name, sorts.from_ivy(ret.sort))
+        binding.name = strip_prefixes(["fml"], ":", binding.name)
+        rng = binding.decl
+    else:
+        raise Exception("Too many formal returns: what's going on here")
+
+    return sorts.ExtensionalRelation(formal_params, rng)
+
+
 def program_from_ivy(im: imod.Module) -> terms.Program:
     porter_sorts = [sorts.from_ivy(s) for s in im.sig.sorts.values()]
     individuals = [binding_from_ivy_const(sym) for name, sym in im.sig.symbols.items() if name != "<"]  # XXX: hack
     inits = [action_from_ivy(im, a) for a in im.initial_actions]
-    actions = [Binding(name, action_def_from_ivy(im, name, a)) for name, a in im.actions.items()]
 
-    # TODO: What's a good ivy ast to pass in here?
-    return terms.Program(None, porter_sorts, individuals, inits, actions)
+    actions = []
+    relations = []
+    for name, ivy_act in im.actions.items():
+        # We need to distinguish between extensional and non-existenial relations.
+        if name not in im.destructor_sorts:
+            relations.append(ext_relation_from_ivy(im, ivy_act))
+        else:
+            actions.append(action_def_from_ivy(im, name, ivy_act))
+
+    return terms.Program(im, porter_sorts, individuals, inits, actions)

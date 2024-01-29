@@ -90,15 +90,25 @@ class SortDeclaration(SortVisitor[Doc]):
 
 class Extractor(TermVisitor[Doc]):
     def extract(self, prog: terms.Program) -> Doc:
+        sort_declarer = SortDeclaration()
+        unboxed = UnboxedSort()
+
         self.visit_program(prog)
 
-        sort_declarer = SortDeclaration()
         sorts = [sort_declarer.visit_sort(s) for name, s in self.sorts.items()]
-        sorts = utils.join(sorts, "\n")
 
-        inits = utils.join(self.inits, "\n")
+        var_docs = []
+        for binding in self.individuals:
+            var = self._constant(binding.name)
+            sort = binding.decl
+            var_docs.append(sort + utils.space + var + semi)
 
-        return sorts + Line() + inits
+        return utils.join(sorts, "\n") + \
+            Line() + \
+            utils.join(var_docs, "\n") + \
+            Line() + \
+            utils.join(self.inits, "\n") + \
+            Line()
 
     # Expressions
 
@@ -164,7 +174,7 @@ class Extractor(TermVisitor[Doc]):
     def _finish_let(self, act: terms.Let, scope: Doc):
         var_docs = []
         for binding in act.vardecls:
-            var = Text(binding.name)
+            var = self._constant(binding.name)
             sort_name = binding.decl
 
             sort = UnboxedSort().visit_sort(self.sorts[sort_name])
@@ -175,7 +185,7 @@ class Extractor(TermVisitor[Doc]):
     def _finish_logical_assign(self, act: terms.LogicalAssign, assn: Doc):
         ret = Nil()
         for v in act.vars:
-            ret = ret + Text(v.sort.name() + ".forEach(") + Text(v.rep) + Text (" => { ")
+            ret = ret + Text(v.sort.name() + ".forEach(") + Text(v.rep) + Text(" => { ")
         ret = ret + assn
         for _ in act.vars:
             ret = ret + Text(" })")
