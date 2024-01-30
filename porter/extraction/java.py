@@ -6,6 +6,7 @@ from porter.ast.terms.visitor import Visitor as TermVisitor
 from porter.ast.sorts.visitor import Visitor as SortVisitor
 
 from porter.pp import Doc, Text, Line, Nest, Nil, utils
+from porter.pp.utils import space
 
 from typing import Optional
 
@@ -22,7 +23,8 @@ def block(contents: Doc) -> Doc:
 def canonicalize_identifier(s: str) -> str:
     return s \
         .replace(".", "__") \
-        .replace("fml:", "")
+        .replace("fml:", "") \
+        .replace("ext:", "ext__")
 
 
 class BoxedSort(SortVisitor[Doc]):
@@ -59,8 +61,12 @@ class UnboxedSort(SortVisitor[Doc]):
     def enum(self, name: str, discriminants: list[str]):
         return Text(name)
 
-    def _finish_function(self, node: sorts.Function, domain: list[Doc], range: Doc):
-        return Text("Action") + Text(str(len(domain) + 1))  # TODO: generics
+    def _finish_function(self, node: sorts.Function, _domain: list[Doc], _range: Doc):
+        boxed = BoxedSort()
+        type_args = [boxed.visit_sort(s) for s in node.domain + [node.range]]
+
+        cls = Text("Function") + Text(str(len(type_args)))
+        return cls + utils.enclosed("<", utils.join(type_args, ", "), ">")
 
     def numeric(self, name: str, lo: Optional[int], hi: Optional[int]):
         return Text("int")
@@ -80,10 +86,14 @@ class SortDeclaration(SortVisitor[Doc]):
 
     def enum(self, name: str, discriminants: list[str]):
         discs = utils.join([Text(s) for s in discriminants], utils.soft_comma)
-        return Text("public enum ") + Text(name) + utils.space + block(discs)
+        return Text("public enum ") + Text(name) + space + block(discs)
 
     def _finish_function(self, node: sorts.Function, domain: list[Doc], range: Doc):
-        return Text("Action") + Text(str(len(domain) + 1))  # TODO: generics
+        boxed = BoxedSort()
+        type_args = [boxed.visit_sort(s) for s in node.domain + [node.range]]
+
+        cls = Text("Function") + Text(str(len(type_args)))
+        return cls + utils.enclosed("<", utils.join(type_args, ", "), ">")
 
     def numeric(self, name: str, lo: Optional[int], hi: Optional[int]):
         return Nil()
@@ -93,6 +103,24 @@ class SortDeclaration(SortVisitor[Doc]):
 
 
 class Extractor(TermVisitor[Doc]):
+
+    @staticmethod
+    def action_sig(name: str, decl: terms.ActionDefinition) -> Doc:
+        unboxed = UnboxedSort()
+
+        if len(decl.formal_returns) > 1:
+            raise Exception("TODO: I don't know how to handle tuples in return types yet")
+
+        if len(decl.formal_returns) == 0:
+            ret = Text("void")
+        else:
+            ret = unboxed.visit_sort(decl.formal_returns[0].decl)
+
+        param_docs = [unboxed.visit_sort(b.decl) + space + Text(b.name) for b in decl.formal_params]
+        params = utils.enclosed("(", utils.join(param_docs, ", "), ")")
+
+        return Text("public") + space + ret + space + Text(name) + params
+
     def extract(self, prog: terms.Program) -> Doc:
         sort_declarer = SortDeclaration()
         unboxed = UnboxedSort()
@@ -104,15 +132,18 @@ class Extractor(TermVisitor[Doc]):
         var_docs = []
         for binding in self.individuals:
             var = self._constant(binding.name)
-            sort = binding.decl
-            var_docs.append(sort + utils.space + var + semi)
+            sort = unboxed.visit_sort(binding.decl)
+            var_docs.append(sort + space + var + semi)
+
+        action_docs = [b.decl for b in self.actions]
 
         return utils.join(sorts, "\n") + \
             Line() + \
             utils.join(var_docs, "\n") + \
             Line() + \
             utils.join(self.inits, "\n") + \
-            Line()
+            Line() + \
+            utils.join(action_docs, "\n")
 
     # Expressions
 
@@ -170,7 +201,7 @@ class Extractor(TermVisitor[Doc]):
 
     def _finish_if(self, act: terms.If, test: Doc, then: Doc, els: Optional[Doc]) -> Doc:
         if_block = Text("if (") + test + Text(")")
-        ret = if_block + utils.space + block(then)
+        ret = if_block + space + block(then)
         if els is not None:
             ret = ret + utils.padded(Text("else")) + block(els)
         return ret
@@ -179,11 +210,9 @@ class Extractor(TermVisitor[Doc]):
         var_docs = []
         for binding in act.vardecls:
             var = self._constant(binding.name)
-            sort_name = binding.decl
+            sort = UnboxedSort().visit_sort(binding.decl)
 
-            sort = UnboxedSort().visit_sort(self.sorts[sort_name])
-
-            var_docs.append(sort + utils.space + var + semi)
+            var_docs.append(sort + space + var + semi)
         return utils.join(var_docs, Line()) + Line() + scope
 
     def _finish_logical_assign(self, act: terms.LogicalAssign, assn: Doc):
@@ -204,12 +233,18 @@ class Extractor(TermVisitor[Doc]):
         m = re.search(pat, act.fmt[curr_begin:])
         while m:
             idx = int(m.group(1))
-            ret = ret + Text(act.fmt[curr_begin : curr_begin + m.start()]) + args[idx]
+            ret = ret + Text(act.fmt[curr_begin: curr_begin + m.start()]) + args[idx]
             curr_begin = curr_begin + m.end()
             m = re.search(pat, act.fmt[curr_begin:])
         ret = ret + Text(act.fmt[curr_begin:])
         return ret
 
-
     def _finish_sequence(self, act: terms.Sequence, stmts: list[Doc]) -> Doc:
         return utils.join(stmts, Line())
+
+    def _finish_action_def(self,
+                           name: str,
+                           defn: terms.ActionDefinition,
+                           body: Doc) -> Doc:
+        sig = Extractor.action_sig(name, defn)
+        return sig + block(body)

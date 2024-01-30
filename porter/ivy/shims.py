@@ -31,9 +31,9 @@ def handle_isolate(path: Path):
         print(im.sort_destructors)
 
 
-def binding_from_ivy_const(c: ilog.Const) -> Binding[sorts.SortName]:
+def binding_from_ivy_const(c: ilog.Const) -> Binding[sorts.Sort]:
     name = c.name
-    sort = sorts.from_ivy(c.sort).name()
+    sort = sorts.from_ivy(c.sort)
     return Binding(name, sort)
 
 

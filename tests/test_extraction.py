@@ -1,5 +1,5 @@
 from porter.ivy import shims
-from porter.ast import Binding, terms
+from porter.ast import Binding, terms, sorts
 from porter.pp.formatter import Naive
 from porter.extraction import java
 
@@ -16,6 +16,40 @@ class JavaExtractionTests(unittest.TestCase):
         expr = shims.expr_from_ivy(im, compiled)
         extracted = Naive(80).format(self.extractor.visit_expr(expr))
         self.assertEqual(extracted.layout(), "42")
+
+    def test_action_sig_void_procedure(self):
+        name = "some_action"
+        body = terms.Call(None, terms.Apply(None, "f", []))
+
+        void_procedure = terms.ActionDefinition(None, terms.ActionKind.NORMAL, [], [], body)
+        extracted = Naive(80).format(java.Extractor.action_sig(name, void_procedure))
+        self.assertEqual(extracted.layout(), "public void some_action()")
+
+    def test_action_sig_void(self):
+        name = "some_action"
+        body = terms.Call(None, terms.Apply(None, "f", []))
+
+        void_procedure = terms.ActionDefinition(
+            None,
+            terms.ActionKind.NORMAL,
+            [Binding("a", sorts.Number.nat_sort())],
+            [],
+            body)
+        extracted = Naive(80).format(java.Extractor.action_sig(name, void_procedure))
+        self.assertEqual(extracted.layout(), "public void some_action(int a)")
+
+    def test_action_sig(self):
+        name = "some_action"
+        body = terms.Call(None, terms.Apply(None, "f", []))
+
+        void_procedure = terms.ActionDefinition(
+            None,
+            terms.ActionKind.NORMAL,
+            [Binding("a", sorts.Number.nat_sort())],
+            [Binding("ret", sorts.Number.nat_sort())],
+            body)
+        extracted = Naive(80).format(java.Extractor.action_sig(name, void_procedure))
+        self.assertEqual(extracted.layout(), "public int some_action(int a)")
 
     def test_app(self):
         expr = terms.Apply(None,
@@ -95,7 +129,7 @@ class JavaExtractionTests(unittest.TestCase):
 
     def test_let_single_binding(self):
         stmt = terms.Let(None,
-                         [Binding("x", "nat")],
+                         [Binding("x", sorts.Number.nat_sort())],
                          terms.Assign(None, terms.Constant(None, "x"), terms.Constant(None, "42")))
         extracted = self.extractor.visit_action(stmt)
         layout = Naive(80).format(extracted).layout()
@@ -106,8 +140,8 @@ class JavaExtractionTests(unittest.TestCase):
 
     def test_let_multi_binding(self):
         stmt = terms.Let(None,
-                         [Binding("x", "int"),
-                          Binding("y", "bool")],
+                         [Binding("x", sorts.Number.nat_sort()),
+                          Binding("y", sorts.Bool())],
                          terms.Sequence(None, [
                              terms.Assign(None, terms.Constant(None, "x"), terms.Constant(None, "42")),
                              terms.Assign(None, terms.Constant(None, "y"), terms.Constant(None, "true"))]))

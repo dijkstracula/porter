@@ -5,7 +5,7 @@ from typing import Any, Optional, TypeVar
 
 from porter.ast import AST, Binding
 
-from porter.ast.sorts import Sort, SortName
+from porter.ast.sorts import Sort
 
 T = TypeVar("T")
 
@@ -51,13 +51,13 @@ class Ite(Expr):
 
 @dataclass
 class Exists(Expr):
-    vars: list[Binding[SortName]]
+    vars: list[Binding[Sort]]
     expr: Expr
 
 
 @dataclass
 class Forall(Expr):
-    vars: list[Binding[SortName]]
+    vars: list[Binding[Sort]]
     expr: Expr
 
 
@@ -69,7 +69,7 @@ SomeStrategy = Enum("SomeStrategy", ["ARBITRARY", "MINIMISE", "MAXIMISE"])
 @dataclass
 class Some(Expr):
     # TODO: I would like to rename this node.
-    vars: list[Binding[SortName]]
+    vars: list[Binding[Sort]]
     fmla: Expr
     strat: SomeStrategy
 
@@ -151,7 +151,7 @@ class If(Action):
 
 @dataclass
 class Let(Action):
-    vardecls: list[Binding[SortName]]
+    vardecls: list[Binding[Sort]]
     scope: Action
 
 
@@ -185,14 +185,14 @@ ActionKind = Enum("ActionKind", ["NORMAL", "EXPORTED", "IMPORTED"])
 @dataclass
 class ActionDefinition(AST):
     kind: ActionKind
-    formal_params: list[Binding[SortName]]
-    formal_returns: list[Binding[SortName]]
+    formal_params: list[Binding[Sort]]
+    formal_returns: list[Binding[Sort]]
     body: Action
 
 
 @dataclass
 class Record(AST):
-    fields: list[Binding[SortName]]
+    fields: list[Binding[Sort]]
     actions: list[Binding[ActionDefinition]]
 
 
@@ -201,6 +201,6 @@ class Record(AST):
 @dataclass
 class Program(AST):
     sorts: list[Sort]
-    individuals: list[Binding[SortName]]
+    individuals: list[Binding[Sort]]
     inits: list[Action]
     actions: list[Binding[ActionDefinition]]

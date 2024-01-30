@@ -22,7 +22,7 @@ class Visitor(Generic[T]):
 
     # These are all the fields in a Program.  Feels weird to accumulate them
     # up mutably like this, but ooooh well.
-    individuals: list[Binding[T]]
+    individuals: list[Binding[Sort]]
     inits: list[T]
     actions: list[Binding[T]]
 
@@ -30,33 +30,30 @@ class Visitor(Generic[T]):
 
     def visit_program(self, prog: Program):
         self.sorts = {s.name(): s for s in prog.sorts}
-        self.individuals = [Binding(b.name, self._constant(b.decl)) for b in prog.individuals]
+        self.individuals = prog.individuals
         self.inits = [self.visit_action(a) for a in prog.inits]
 
         self.actions = []
         for binding in prog.actions:
             name = binding.name
             action = binding.decl
+
+            self._begin_action_def(name, action)
+            body = self.visit_action(action.body)
+
             self.scopes.append(name)
-            self.actions.append(self.visit_action_def(action))
+            self.actions.append(Binding(name, self._finish_action_def(name, action, body)))
             self.scopes.pop()
 
     # Action definition
-    # TODO: actions vs non-extensional relations???
-    def visit_action_def(self, defn: ActionDefinition):
-        params = [Binding(b.name, self._constant(b.decl)) for b in defn.formal_params]
-        returns = [Binding(b.name, self._constant(b.decl)) for b in defn.formal_returns]
-        action = self.visit_action(defn.body)
-        pass
 
-    def _begin_action_def(self, defn: ActionDefinition):
+    def _begin_action_def(self, name: str, defn: ActionDefinition):
         pass
 
     def _finish_action_def(self,
+                           name: str,
                            defn: ActionDefinition,
-                           params: list[Binding[T]],
-                           returns: list[Binding[T]],
-                           action: T) -> T:
+                           body: T) -> T:
         raise UnimplementedASTNodeHandler(ActionDefinition)
 
     # Expressions
@@ -79,14 +76,12 @@ class Visitor(Generic[T]):
                 return self._var(rep)
             case Exists(_, vars, expr):
                 self._begin_exists(node)
-                vars = [Binding(b.name, self._constant(b.decl)) for b in vars]
                 expr = self.visit_expr(expr)
-                return self._finish_exists(node, vars, expr)
+                return self._finish_exists(node, expr)
             case Forall(_, vars, expr):
                 self._begin_forall(node)
-                vars = [Binding(b.name, self._constant(b.decl)) for b in vars]
                 expr = self.visit_expr(expr)
-                return self._finish_forall(node, vars, expr)
+                return self._finish_forall(node, expr)
             case Ite(_, test, then, els):
                 self._begin_ite(node)
                 test = self.visit_expr(test)
@@ -95,9 +90,8 @@ class Visitor(Generic[T]):
                 return self._finish_ite(node, test, then, els)
             case Some(_, vars, fmla, _strat):
                 self._begin_some(node)
-                vars = [Binding(b.name, self._constant(b.decl)) for b in vars]
                 fmla = self.visit_expr(fmla)
-                return self._finish_some(node, vars, fmla)
+                return self._finish_some(node, fmla)
             case UnOp(_, _op, expr):
                 self._begin_unop(node)
                 expr = self.visit_expr(expr)
@@ -125,13 +119,13 @@ class Visitor(Generic[T]):
     def _begin_exists(self, node: Exists):
         pass
 
-    def _finish_exists(self, node: Exists, vars: list[Binding[T]], expr: T):
+    def _finish_exists(self, node: Exists, expr: T):
         raise UnimplementedASTNodeHandler(Exists)
 
     def _begin_forall(self, node: Forall):
         pass
 
-    def _finish_forall(self, node: Forall, vars: list[T], expr: T):
+    def _finish_forall(self, node: Forall, expr: T):
         raise UnimplementedASTNodeHandler(Forall)
 
     def _begin_ite(self, node: Ite):
@@ -143,7 +137,7 @@ class Visitor(Generic[T]):
     def _begin_some(self, node: Some):
         pass
 
-    def _finish_some(self, node: Some, vars: list[Binding[T]], fmla: T):
+    def _finish_some(self, node: Some, fmla: T):
         raise UnimplementedASTNodeHandler(Some)
 
     def _begin_unop(self, node: UnOp):

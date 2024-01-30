@@ -26,7 +26,7 @@ def symbols(im: imod.Module) -> Iterable[log.Const]:
             raise Exception(f"symbols: TODO: {name} = {sym}")
 
 
-def members(im: imod.Module) -> bool:
+def members(im: imod.Module) -> Iterable[log.Const]:
     for sym in symbols(im):
         if sym.name not in im.destructor_sorts:
             yield sym

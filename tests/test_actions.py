@@ -5,7 +5,7 @@ import porter.ast
 from . import compile_toplevel, extract_after_init
 from typing import Tuple
 
-from porter.ast import terms
+from porter.ast import sorts, terms
 
 from porter.ivy.shims import action_def_from_ivy, action_from_ivy
 
@@ -27,8 +27,8 @@ class ExprTest(unittest.TestCase):
         action = "action inc(n: nat) returns (m: nat) = { m := n + 1 }"
         im, compiled = compile_action("inc", action)
         act = action_def_from_ivy(im, "inc", compiled)
-        self.assertEqual(act.formal_params, [porter.ast.Binding("n", "nat")])
-        self.assertEqual(act.formal_returns, [porter.ast.Binding("m", "nat")])
+        self.assertEqual(act.formal_params, [porter.ast.Binding("n", sorts.Number.nat_sort())])
+        self.assertEqual(act.formal_returns, [porter.ast.Binding("m", sorts.Number.nat_sort())])
 
         body = act.body
         assert isinstance(body, terms.Assign)
@@ -56,12 +56,10 @@ class ExprTest(unittest.TestCase):
                  }"""
         im, compiled = compile_action("id", action)
         assert isinstance(compiled, iact.Sequence)
-        assert isinstance(compiled.args[0],
-                          iact.Sequence)  # TODO: I wonder why sequences are nested like this? Oh well.
-        assert isinstance(compiled.args[0].args[0], iact.AssignAction)  # m := 0
-        assert isinstance(compiled.args[0].args[1], iact.WhileAction)  # while [test] [body] [ranking]
+        assert isinstance(compiled.args[0], iact.AssignAction)  # m := 0
+        assert isinstance(compiled.args[1], iact.WhileAction)  # while [test] [body] [ranking]
 
-        while_ast = action_from_ivy(im, compiled.args[0].args[1])
+        while_ast = action_from_ivy(im, compiled.args[1])
         assert isinstance(while_ast, terms.While)
 
     def test_apply_action(self):
@@ -113,14 +111,17 @@ class ExprTest(unittest.TestCase):
         assert isinstance(act.stmts[1], terms.Let)
 
     def test_logical_assign_lift(self):
+        from porter.ast import sorts
+
         action = terms.Assign(None,
                               terms.Apply(None, "f", [terms.Constant(None, "x")]),
                               terms.Constant(None, "false"))
         self.assertIsNone(terms.LogicalAssign.maybe_from_assign(action))
 
         action = terms.Assign(None,
-                              terms.Apply(None, "f", [terms.Var(None, "X")]),
+                              terms.Apply(None, "f", [terms.Var(None, "X", sorts.Bool())]),
                               terms.Constant(None, "false"))
         laction = terms.LogicalAssign.maybe_from_assign(action)
         self.assertIsNotNone(laction)
-        self.assertEqual(laction.vars, [terms.Var(None, "X")])
+        assert isinstance(laction, terms.LogicalAssign)
+        self.assertEqual(laction.vars, [terms.Var(None, "X", sorts.Bool())])

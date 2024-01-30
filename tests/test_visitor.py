@@ -70,13 +70,18 @@ class ExprCounter(Visitor[None]):
     def _finish_let(self, act: terms.Let, scope: None):
         self.n_action_nodes += 1
 
+    def _finish_logical_assign(self, act: terms.LogicalAssign, assn: None):
+        self.n_action_nodes += 1
+
+    def _finish_native(self, act: terms.Native, args: list[None]):
+        self.n_action_nodes += 1
+
     def _finish_sequence(self, act: terms.Sequence, stmts: list[None]):
         self.n_action_nodes += 1
 
     def _finish_action_def(self,
+                           name: str,
                            defn: terms.ActionDefinition,
-                           params: list[Binding[None]],
-                           returns: list[Binding[None]],
                            action: None) -> None:
         pass
 
