@@ -2,7 +2,9 @@ import click
 
 from pathlib import Path
 
-from .ivy import shims
+from .ivy import config, shims
+
+config.init_parameters()
 
 
 @click.command()

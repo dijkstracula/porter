@@ -70,16 +70,7 @@ class Function(Sort):
     range: Sort
 
     def name(self):
-        return f"Action<{','.join([s.name() for s in self.domain])}, {self.range.name()}"
-
-
-@dataclass(frozen=True)
-class ExtensionalRelation(Sort):
-    dom: list[Sort]
-    rng: Sort
-
-    def name(self):
-        return f"Extensional<{','.join([s.name() for s in self.dom])}, {self.rng.name()}"
+        return f"Function<{','.join([s.name() for s in self.domain])},{self.range.name()}>"
 
 
 def from_ivy(sort) -> Sort:
@@ -101,6 +92,5 @@ def from_ivy(sort) -> Sort:
     if isinstance(sort, ilog.FunctionSort):
         domain = [from_ivy(s) for s in sort.domain]
         ret = from_ivy(sort.range)
-        # TODO: this is unsafe: we need to know whether the sort is extensional or not!!
         return Function(domain, ret)
     raise Exception(f"TODO {type(sort)}")

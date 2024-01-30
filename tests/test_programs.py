@@ -5,7 +5,8 @@ import pytest
 import warnings
 
 from . import compile_ivy
-from porter.ivy import shims
+import porter.ivy as pivy
+from porter.ivy import extensionality, shims
 from porter.ast import terms
 from porter.extraction import java
 from porter.pp.formatter import Naive

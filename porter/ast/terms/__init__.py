@@ -157,6 +157,7 @@ class Let(Action):
 
 @dataclass
 class Native(Action):
+    lang: str
     fmt: str  # TODO: in Ivy this is a NativeCode
     args: list[Expr]
 

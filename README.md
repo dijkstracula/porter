@@ -15,7 +15,7 @@ additional repositories.
 
 ### Python and Poetry
 
-Porter requires python 3.11.  Begin by installing it if you are using an older
+Porter requires python 3.11. Begin by installing it if you are using an older
 version.
 
 ```
@@ -23,7 +23,7 @@ $ sudo apt-get install python3.11 # Ubuntu
 $ brew install python3.11 #MacOS
 ```
 
-Porter uses Poetry for dependency management. Install it, create your virtual 
+Porter uses Poetry for dependency management. Install it, create your virtual
 environment, and install Poetry dependencies into it.
 
 ```
@@ -47,7 +47,7 @@ $
 
 ### IVy
 
-Next, Install the python3 fork of Ivy. 
+Next, Install the python3 fork of Ivy.
 
 The `ms-ivy` package is not explicitly a dependency because we may wish to
 either install a stock release of Ivy or use a version checked out from source.
@@ -74,7 +74,7 @@ Finished installing dependencies for ms-ivy==1.8.25
 ```
 
 You may find that the submodule building script may not fully complete, but so
-long as z3 builds you're good.  Confirm that ivy and ivy's Z3 modules are
+long as z3 builds you're good. Confirm that ivy and ivy's Z3 modules are
 available to your virtualenv's Python.
 
 ```
@@ -87,6 +87,15 @@ available to your virtualenv's Python.
 ```
 
 ## Development
+
+High-level source architecture:
+
+* `ast/`        : Well-typed IVy abstract syntax tree.
+* `extraction/` : Ivy -> Java source conversion.
+* `ivy/`        : Shim to Ken's IVy.  (All `ivy` imports should try to live in here.)
+* `pp/`         : Wadler-style pretty-printer combinators.
+
+## Running
 
 Porter uses pytest for unit tests and pyright for typechecking.
 

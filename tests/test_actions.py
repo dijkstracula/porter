@@ -36,6 +36,14 @@ class ExprTest(unittest.TestCase):
         assert isinstance(body.rhs, terms.BinOp)
         self.assertTrue(body.rhs.op, "+")
 
+    def test_point_update(self):
+        from porter.ivy.extensionality import is_point_update
+
+        action = "action inc(n: nat) returns (m: nat) = { m := n + 1 }"
+        im, compiled = compile_action("inc", action)
+        act = action_def_from_ivy(im, "inc", compiled)
+        self.assertTrue(act.body, is_point_update(act.body))
+
     def test_while_with_decreases(self):
         action = """action id(n: nat) returns (m: nat) = {
                      m := 0;

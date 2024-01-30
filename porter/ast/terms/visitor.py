@@ -1,6 +1,6 @@
 from typing import Generic
 
-from porter.ast.sorts import Bool, BitVec, Enumeration, ExtensionalRelation, Function, Number, Uninterpreted
+from porter.ast.sorts import Bool, BitVec, Enumeration, Function, Number, Uninterpreted
 from porter.ast.terms import *
 
 T = TypeVar("T")
@@ -58,16 +58,6 @@ class Visitor(Generic[T]):
                            returns: list[Binding[T]],
                            action: T) -> T:
         raise UnimplementedASTNodeHandler(ActionDefinition)
-
-    def _begin_extensional_relation(self, rel: ExtensionalRelation):
-        pass
-
-    def _finish_extensional_relation(self,
-                           defn: ActionDefinition,
-                           dom: list[Binding[T]],
-                           rng: T,
-                           rel: T) -> T:
-        raise UnimplementedASTNodeHandler(ExtensionalRelation)
 
     # Expressions
 
@@ -210,7 +200,7 @@ class Visitor(Generic[T]):
                 self._begin_logical_assign(node)
                 assign = self.visit_action(assign)
                 return self._finish_logical_assign(node, assign)
-            case Native(_, _fmt, args):
+            case Native(_, _lang, _fmt, args):
                 self._begin_native(node)
                 args = [self.visit_expr(arg) for arg in args]
                 return self._finish_native(node, args)

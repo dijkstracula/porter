@@ -1,3 +1,5 @@
+import re
+
 from porter.ast import Binding, sorts, terms
 
 from porter.ast.terms.visitor import Visitor as TermVisitor
@@ -18,7 +20,9 @@ def block(contents: Doc) -> Doc:
 
 
 def canonicalize_identifier(s: str) -> str:
-    return s.replace(".", "__")
+    return s \
+        .replace(".", "__") \
+        .replace("fml:", "")
 
 
 class BoxedSort(SortVisitor[Doc]):
@@ -190,6 +194,22 @@ class Extractor(TermVisitor[Doc]):
         for _ in act.vars:
             ret = ret + Text(" })")
         return ret
+
+    def _finish_native(self, act: terms.Native, args: list[Doc]) -> Doc:
+        pat = r"`(\d+)`"
+        ret = Nil()
+
+        # TODO: bail out if we have not translated the Native out of C++.
+        curr_begin = 0
+        m = re.search(pat, act.fmt[curr_begin:])
+        while m:
+            idx = int(m.group(1))
+            ret = ret + Text(act.fmt[curr_begin : curr_begin + m.start()]) + args[idx]
+            curr_begin = curr_begin + m.end()
+            m = re.search(pat, act.fmt[curr_begin:])
+        ret = ret + Text(act.fmt[curr_begin:])
+        return ret
+
 
     def _finish_sequence(self, act: terms.Sequence, stmts: list[Doc]) -> Doc:
         return utils.join(stmts, Line())
