@@ -1,0 +1,49 @@
+#lang ivy1.8
+
+include numbers
+
+type id
+type client
+type server
+
+function conn_counts(X: client): nat
+
+relation link(X:client, Y:server)
+relation semaphore(X:server)
+
+after init {
+    conn_counts(X) := 0;
+
+    semaphore(W) := true;
+    link(X, Y) := false;
+}
+
+action connect(x:client, y:server) = {
+    require semaphore(y);
+    link(x, y) := true;
+    semaphore(y) := false;
+
+    conn_counts(x) := conn_counts(x) + 1;
+}
+
+action disconnect(x:client, y:server) = {
+    require link(x, y);
+    link(x, y) := false;
+    semaphore(y) := true
+}
+
+action crash(x: client) = {
+    # NB: Note that this means that link cannot be extensional?
+    link(x,Y) := false;
+}
+
+export connect
+export disconnect
+export crash
+
+invariant X = Z | ~link(X, Y) | ~link(Z, Y)
+invariant link(X, Y)
+
+axiom X:id < Y & Y < Z -> X < Z
+axiom ~(X:id < X)
+axiom X:id < Y | X = Y | Y < X

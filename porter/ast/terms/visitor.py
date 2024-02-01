@@ -29,6 +29,8 @@ class Visitor(Generic[T]):
     scopes: list[str] = []
 
     def visit_program(self, prog: Program):
+        self._begin_program(prog)
+
         self.sorts = {s.name(): s for s in prog.sorts}
         self.individuals = prog.individuals
         self.inits = [self.visit_action(a) for a in prog.inits]
@@ -44,6 +46,9 @@ class Visitor(Generic[T]):
             self.scopes.append(name)
             self.actions.append(Binding(name, self._finish_action_def(name, action, body)))
             self.scopes.pop()
+
+    def _begin_program(self, prog: Program):
+        pass
 
     # Action definition
 
@@ -144,7 +149,7 @@ class Visitor(Generic[T]):
         pass
 
     def _finish_unop(self, node: UnOp, expr: T):
-        raise UnimplementedASTNodeHandler(Some)
+        raise UnimplementedASTNodeHandler(UnOp)
 
     # Actions
 
@@ -298,3 +303,83 @@ class Visitor(Generic[T]):
 
     def _finish_while(self, act: While, test: T, decreases: Optional[T], do: T):
         raise UnimplementedASTNodeHandler(While)
+
+
+class MutVisitor(Visitor[None]):
+    " A base class for mutating visitors, where all operations are procedures and default to no-ops."
+
+    # Expressions
+
+    def _constant(self, rep: str):
+        pass
+
+    def _var(self, rep: str):
+        pass
+
+    def _finish_apply(self, node: Apply, relsym_ret: None, args_ret: list[None]):
+        pass
+
+    def _finish_binop(self, node: BinOp, lhs_ret: None, rhs_ret: None):
+        pass
+
+    def _finish_exists(self, node: Exists, expr: None):
+        pass
+
+    def _finish_forall(self, node: Forall, expr: None):
+        pass
+
+    def _finish_ite(self, node: Ite, test: None, then: None, els: None):
+        None
+
+    def _finish_some(self, node: Some, fmla: None):
+        None
+
+    def _finish_unop(self, node: UnOp, expr: None):
+        None
+
+    # Actions
+
+    def _finish_assert(self, act: Assert, pred: None):
+        pass
+
+    def _finish_assign(self, act: Assign, lhs: None, rhs: None):
+        pass
+
+    def _finish_assume(self, act: Assume, pred: None):
+        pass
+
+    def _finish_call(self, act: Call, app: None):
+        pass
+
+    def _finish_debug(self, act: Debug, args: list[Binding[None]]):
+        pass
+
+    def _finish_ensures(self, act: Ensures, pred: None):
+        pass
+
+    def _finish_havok(self, act: Havok, modifies: list[None]):
+        pass
+
+    def _finish_if(self, act: If, test: None, then: None, els: Optional[None]):
+        pass
+
+    def _finish_let(self, act: Let, scope: None):
+        pass
+
+    def _finish_logical_assign(self, act: LogicalAssign, assn: None):
+        pass
+
+    def _finish_native(self, act: Native, args: list[None]):
+        pass
+
+    def _finish_requires(self, act: Requires, pred: None):
+        pass
+
+    def _finish_sequence(self, act: Sequence, stmts: list[None]):
+        pass
+
+    def _finish_while(self, act: While, test: None, decreases: Optional[None], do: None):
+        pass
+
+    def _finish_action_def(self, name: str, defn: ActionDefinition, body: None):
+        pass

@@ -4,14 +4,11 @@ import pathlib
 import pytest
 import warnings
 
-from . import compile_ivy
-import porter.ivy as pivy
-from porter.ivy import extensionality, shims
+from . import compile_ivy, progdir
+from porter.ivy import shims
 from porter.ast import terms
 from porter.extraction import java
 from porter.pp.formatter import Naive
-
-progdir = os.path.join(os.path.dirname(__file__), 'programs')
 
 
 def compile_and_parse(fn) -> terms.Program:

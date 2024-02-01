@@ -185,7 +185,7 @@ process client (self:client_id) = {
 
             # Overlay for client-server messages
 
-            instance net : tcp.net(msg_t)
+            instance net : tcp_test.net(msg_t)
             
 
             # The clients share a parameterized collection of `server`

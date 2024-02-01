@@ -9,6 +9,8 @@ from ivy import ivy_isolate as iiso
 import io
 from typing import Any, Tuple
 
+progdir = os.path.join(os.path.dirname(__file__), 'programs')
+
 
 def isolate_boilerplate(contents: str) -> str:
     return "\n".join(["#lang ivy1.8",

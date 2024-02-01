@@ -1,4 +1,8 @@
-from porter.ast import terms
+import porter.ast
+from porter.ast import sorts, terms
+from porter.ast.sorts import Function
+from porter.ast.terms import Binding
+from porter.ast.terms.visitor import MutVisitor
 
 from ivy import ivy_to_cpp as icpp
 from ivy import ivy_module as imod
@@ -44,6 +48,35 @@ def cardinality(s) -> Optional[int]:
 #
 # TODO: I am not sure how to determine if it's derived.
 
-def existensional_relations(im: imod.Module):
-    with im:
-        return icpp.extensional_relations()
+
+class NonExtensionals(MutVisitor):
+    im: imod.Module
+
+    exts: set[str]
+
+    def __init__(self, im: imod.Module):
+        self.im = im
+        self.nons = set()
+
+    def _begin_program(self, prog: terms.Program):
+        pass
+
+    def _finish_assign(self, act: terms.Assign, lhs: None, rhs: None):
+        act_lhs = act.lhs
+        act_rhs = act.rhs
+        if not isinstance(act_lhs, terms.Apply):
+            return
+
+        relsym = act_lhs.relsym
+        args = act_lhs.args
+
+        # relsym cannot be extensional if it is:
+        # a) ever initialized to something other than a constant
+        if all([isinstance(arg, terms.Var) for arg in args]):
+            if not isinstance(act_rhs, terms.Constant):
+                self.nons.add(relsym)
+
+        # b) otherwise, ever updated with a non-point lhs
+        elif any([isinstance(arg, terms.Var) for arg in args]):
+            self.nons.add(relsym)
+

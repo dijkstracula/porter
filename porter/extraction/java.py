@@ -172,9 +172,16 @@ class Extractor(TermVisitor[Doc]):
         raise NotImplementedError()
 
     def _finish_unop(self, node: terms.UnOp, expr: Doc):
+        match node.op:
+            case "~":
+                op = "!"
+            case "-":
+                op = "-"
+            case _: raise Exception(f"Unknown op: {node.op}")
+
         if isinstance(expr, Text):
-            return Text(node.op) + expr
-        return Text(node.op) + utils.enclosed("(", expr, ")")
+            return Text(op) + expr
+        return Text(op) + utils.enclosed("(", expr, ")")
 
     # Actions
 
@@ -228,15 +235,21 @@ class Extractor(TermVisitor[Doc]):
         pat = r"`(\d+)`"
         ret = Nil()
 
-        # TODO: bail out if we have not translated the Native out of C++.
-        curr_begin = 0
-        m = re.search(pat, act.fmt[curr_begin:])
-        while m:
-            idx = int(m.group(1))
-            ret = ret + Text(act.fmt[curr_begin: curr_begin + m.start()]) + args[idx]
-            curr_begin = curr_begin + m.end()
-            m = re.search(pat, act.fmt[curr_begin:])
-        ret = ret + Text(act.fmt[curr_begin:])
+        for line in act.fmt.split("\n"):
+            #line = line.strip()
+
+            # TODO: bail out if we have not translated the Native out of C++.
+            curr_begin = 0
+            m = re.search(pat, line[curr_begin:])
+            while m:
+                idx = int(m.group(1))
+                text = line[curr_begin : curr_begin + m.start()].strip()
+                ret = ret + Text(text) + args[idx]
+
+                curr_begin = curr_begin + m.end()
+                m = re.search(pat, line[curr_begin:])
+
+            ret = ret + Text(line[curr_begin:]) + Line()
         return ret
 
     def _finish_sequence(self, act: terms.Sequence, stmts: list[Doc]) -> Doc:
