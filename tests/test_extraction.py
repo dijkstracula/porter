@@ -1,7 +1,7 @@
 from porter.ivy import shims
 from porter.ast import Binding, terms, sorts
 from porter.pp.formatter import Naive
-from porter.extraction import java
+from porter.extraction.java import terms as jterms
 
 from . import compile_annotated_expr
 
@@ -9,7 +9,7 @@ import unittest
 
 
 class JavaExtractionTests(unittest.TestCase):
-    extractor = java.Extractor()
+    extractor = jterms.Extractor()
 
     def test_constant(self):
         im, compiled = compile_annotated_expr("nat", "42")
@@ -22,7 +22,7 @@ class JavaExtractionTests(unittest.TestCase):
         body = terms.Call(None, terms.Apply(None, "f", []))
 
         void_procedure = terms.ActionDefinition(None, terms.ActionKind.NORMAL, [], [], body)
-        extracted = Naive(80).format(java.Extractor.action_sig(name, void_procedure))
+        extracted = Naive(80).format(self.extractor.action_sig(name, void_procedure))
         self.assertEqual(extracted.layout(), "public void some_action()")
 
     def test_action_sig_void(self):
@@ -35,7 +35,7 @@ class JavaExtractionTests(unittest.TestCase):
             [Binding("a", sorts.Number.nat_sort())],
             [],
             body)
-        extracted = Naive(80).format(java.Extractor.action_sig(name, void_procedure))
+        extracted = Naive(80).format(self.extractor.action_sig(name, void_procedure))
         self.assertEqual(extracted.layout(), "public void some_action(int a)")
 
     def test_action_sig(self):
@@ -48,7 +48,7 @@ class JavaExtractionTests(unittest.TestCase):
             [Binding("a", sorts.Number.nat_sort())],
             [Binding("ret", sorts.Number.nat_sort())],
             body)
-        extracted = Naive(80).format(java.Extractor.action_sig(name, void_procedure))
+        extracted = Naive(80).format(self.extractor.action_sig(name, void_procedure))
         self.assertEqual(extracted.layout(), "public int some_action(int a)")
 
     def test_app(self):

@@ -1,105 +1,16 @@
 import re
 
-from porter.ast import Binding, sorts, terms
+from .sorts import *
+from .utils import *
+
+from porter.ast import Binding, terms
 
 from porter.ast.terms.visitor import Visitor as TermVisitor
-from porter.ast.sorts.visitor import Visitor as SortVisitor
 
 from porter.pp import Doc, Text, Line, Nest, Nil, utils
 from porter.pp.utils import space
 
 from typing import Optional
-
-semi = Text(";")
-
-soft_open_bracket = Text("{") + utils.soft_line
-soft_close_bracket = utils.soft_line + Text("}")
-
-
-def block(contents: Doc) -> Doc:
-    return Text("{") + Line() + Nest(2, contents) + Line() + Text("}")
-
-
-def canonicalize_identifier(s: str) -> str:
-    return s \
-        .replace(".", "__") \
-        .replace("fml:", "") \
-        .replace("ext:", "ext__")
-
-
-class BoxedSort(SortVisitor[Doc]):
-    def bool(self):
-        return Text("Boolean")
-
-    def bv(self, name: str, width: int):
-        if width > 64:
-            raise Exception("BV too wide")
-        return Text("Long")
-
-    def enum(self, name: str, discriminants: list[str]):
-        return Text(name)
-
-    def _finish_function(self, node: sorts.Function, domain: list[Doc], range: Doc):
-        return Text("Action") + Text(str(len(domain) + 1))  # TODO: generics
-
-    def numeric(self, name: str, lo: Optional[int], hi: Optional[int]):
-        return Text("Integer")
-
-    def uninterpreted(self, name: str):
-        return Text("Integer")
-
-
-class UnboxedSort(SortVisitor[Doc]):
-    def bool(self):
-        return Text("bool")
-
-    def bv(self, name: str, width: int):
-        if width > 64:
-            raise Exception("BV too wide")
-        return Text("long")
-
-    def enum(self, name: str, discriminants: list[str]):
-        return Text(name)
-
-    def _finish_function(self, node: sorts.Function, _domain: list[Doc], _range: Doc):
-        boxed = BoxedSort()
-        type_args = [boxed.visit_sort(s) for s in node.domain + [node.range]]
-
-        cls = Text("Function") + Text(str(len(type_args)))
-        return cls + utils.enclosed("<", utils.join(type_args, ", "), ">")
-
-    def numeric(self, name: str, lo: Optional[int], hi: Optional[int]):
-        return Text("int")
-
-    def uninterpreted(self, name: str):
-        return Text("int")
-
-
-class SortDeclaration(SortVisitor[Doc]):
-    """Many sorts don't need explicit declarations extracted, but here are the ones that do. """
-
-    def bool(self):
-        return Nil()
-
-    def bv(self, name: str, width: int):
-        return Nil()
-
-    def enum(self, name: str, discriminants: list[str]):
-        discs = utils.join([Text(s) for s in discriminants], utils.soft_comma)
-        return Text("public enum ") + Text(name) + space + block(discs)
-
-    def _finish_function(self, node: sorts.Function, domain: list[Doc], range: Doc):
-        boxed = BoxedSort()
-        type_args = [boxed.visit_sort(s) for s in node.domain + [node.range]]
-
-        cls = Text("Function") + Text(str(len(type_args)))
-        return cls + utils.enclosed("<", utils.join(type_args, ", "), ">")
-
-    def numeric(self, name: str, lo: Optional[int], hi: Optional[int]):
-        return Nil()
-
-    def uninterpreted(self, name: str):
-        return Nil()
 
 
 class Extractor(TermVisitor[Doc]):
@@ -130,35 +41,6 @@ class Extractor(TermVisitor[Doc]):
 
         body = exports + [space] + inits
         return Text(f"public {isolate_name}()") + space + block(utils.join(body, "\n"))
-
-    # TODO: why is this not just visit_program()???
-    def extract(self, isolate_name: str, prog: terms.Program) -> Doc:
-        self.visit_program(prog)
-
-        unboxed = UnboxedSort()
-
-        sort_declarer = SortDeclaration()
-        sorts = [sort_declarer.visit_sort(s) for name, s in self.sorts.items()]
-
-        var_docs = []
-        for binding in self.individuals:
-            var = self._constant(binding.name)
-            sort = unboxed.visit_sort(binding.decl)
-            var_docs.append(sort + space + var + semi)
-
-        action_docs = [b.decl for b in self.actions]
-
-        constructor = self.cstr(
-            isolate_name,
-            [b for b in prog.actions if b.decl.kind == terms.ActionKind.EXPORTED],
-            self.inits)
-
-        body = utils.join(sorts, "\n") + Line() + \
-               utils.join(var_docs, "\n") + Line() + Line() + \
-               constructor + Line() + Line() + \
-               utils.join(action_docs, "\n")
-
-        return Text(f"public {isolate_name} extends Protocol ") + block(body)
 
     # Expressions
 

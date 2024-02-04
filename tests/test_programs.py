@@ -8,6 +8,7 @@ from . import compile_ivy, progdir
 from porter.ivy import shims
 from porter.ast import terms
 from porter.extraction import java
+from porter.extraction.java import terms as jterms
 from porter.pp.formatter import Naive
 
 
@@ -37,8 +38,7 @@ unit_tests = [os.path.join(progdir, f) for f in os.listdir(progdir) if os.path.i
 def test_compile_and_extract(fn):
     prog = compile_and_parse(fn)
 
-    extractor = java.Extractor()
-    formatted = Naive(80).format(extractor.extract(prog))
+    formatted = Naive(80).format(java.extract(os.path.basename(fn), prog))
     _layout = formatted.layout()
     pass
 
