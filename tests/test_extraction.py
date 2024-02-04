@@ -83,7 +83,7 @@ class JavaExtractionTests(unittest.TestCase):
 
     def test_unop(self):
         # Trivial expressions can have parens elided.
-        expr = terms.UnOp(None, "!", terms.Constant(None, "true"))
+        expr = terms.UnOp(None, "~", terms.Constant(None, "true"))
         extracted = Naive(80).format(self.extractor.visit_expr(expr))
         self.assertEqual(extracted.layout(), "!true")
 

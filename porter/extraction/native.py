@@ -3,6 +3,7 @@ from porter.ast.terms.visitor import MutVisitor
 
 from typing import Tuple
 
+
 class NativeRewriter(MutVisitor):
     natives: dict[Tuple[str, int], str]
 

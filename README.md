@@ -86,6 +86,12 @@ available to your virtualenv's Python.
 >>> ^D
 ```
 
+## Running
+
+```
+$ poetry run
+```
+
 ## Development
 
 High-level source architecture:
@@ -94,8 +100,6 @@ High-level source architecture:
 * `extraction/` : Ivy -> Java source conversion.
 * `ivy/`        : Shim to Ken's IVy.  (All `ivy` imports should try to live in here.)
 * `pp/`         : Wadler-style pretty-printer combinators.
-
-## Running
 
 Porter uses pytest for unit tests and pyright for typechecking.
 
@@ -110,3 +114,5 @@ copy as well:
 ```commandline
 git submodule update --remote --recursive
 ```
+
+

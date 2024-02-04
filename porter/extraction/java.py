@@ -104,8 +104,7 @@ class SortDeclaration(SortVisitor[Doc]):
 
 class Extractor(TermVisitor[Doc]):
 
-    @staticmethod
-    def action_sig(name: str, decl: terms.ActionDefinition) -> Doc:
+    def action_sig(self, name: str, decl: terms.ActionDefinition) -> Doc:
         unboxed = UnboxedSort()
 
         if len(decl.formal_returns) > 1:
@@ -116,17 +115,29 @@ class Extractor(TermVisitor[Doc]):
         else:
             ret = unboxed.visit_sort(decl.formal_returns[0].decl)
 
-        param_docs = [unboxed.visit_sort(b.decl) + space + Text(b.name) for b in decl.formal_params]
+        param_docs = [unboxed.visit_sort(b.decl) + space + self._constant(b.name) for b in decl.formal_params]
         params = utils.enclosed("(", utils.join(param_docs, ", "), ")")
 
-        return Text("public") + space + ret + space + Text(name) + params
+        return Text("public") + space + ret + space + self._constant(name) + params
 
-    def extract(self, prog: terms.Program) -> Doc:
-        sort_declarer = SortDeclaration()
-        unboxed = UnboxedSort()
+    def export_action(self, action: Binding[terms.ActionDefinition]) -> Doc:
+        arity = len(action.decl.formal_params) + len(action.decl.formal_returns)
+        args = [self._constant(action.name)]
+        return Text(f"exportAction{arity}") + Text("(") + utils.join(args, ",") + Text(");")
 
+    def cstr(self, isolate_name: str, exports: list[Binding[terms.ActionDefinition]], inits: list[Doc]):
+        exports = [self.export_action(e) for e in exports]
+
+        body = exports + [space] + inits
+        return Text(f"public {isolate_name}()") + space + block(utils.join(body, "\n"))
+
+    # TODO: why is this not just visit_program()???
+    def extract(self, isolate_name: str, prog: terms.Program) -> Doc:
         self.visit_program(prog)
 
+        unboxed = UnboxedSort()
+
+        sort_declarer = SortDeclaration()
         sorts = [sort_declarer.visit_sort(s) for name, s in self.sorts.items()]
 
         var_docs = []
@@ -137,13 +148,17 @@ class Extractor(TermVisitor[Doc]):
 
         action_docs = [b.decl for b in self.actions]
 
-        return utils.join(sorts, "\n") + \
-            Line() + \
-            utils.join(var_docs, "\n") + \
-            Line() + \
-            utils.join(self.inits, "\n") + \
-            Line() + \
-            utils.join(action_docs, "\n")
+        constructor = self.cstr(
+            isolate_name,
+            [b for b in prog.actions if b.decl.kind == terms.ActionKind.EXPORTED],
+            self.inits)
+
+        body = utils.join(sorts, "\n") + Line() + \
+               utils.join(var_docs, "\n") + Line() + Line() + \
+               constructor + Line() + Line() + \
+               utils.join(action_docs, "\n")
+
+        return Text(f"public {isolate_name} extends Protocol ") + block(body)
 
     # Expressions
 
@@ -177,7 +192,8 @@ class Extractor(TermVisitor[Doc]):
                 op = "!"
             case "-":
                 op = "-"
-            case _: raise Exception(f"Unknown op: {node.op}")
+            case _:
+                raise Exception(f"Unknown op: {node.op}")
 
         if isinstance(expr, Text):
             return Text(op) + expr
@@ -236,14 +252,14 @@ class Extractor(TermVisitor[Doc]):
         ret = Nil()
 
         for line in act.fmt.split("\n"):
-            #line = line.strip()
+            # line = line.strip()
 
             # TODO: bail out if we have not translated the Native out of C++.
             curr_begin = 0
             m = re.search(pat, line[curr_begin:])
             while m:
                 idx = int(m.group(1))
-                text = line[curr_begin : curr_begin + m.start()].strip()
+                text = line[curr_begin: curr_begin + m.start()].strip()
                 ret = ret + Text(text) + args[idx]
 
                 curr_begin = curr_begin + m.end()
@@ -259,5 +275,5 @@ class Extractor(TermVisitor[Doc]):
                            name: str,
                            defn: terms.ActionDefinition,
                            body: Doc) -> Doc:
-        sig = Extractor.action_sig(name, defn)
-        return sig + block(body)
+        sig = self.action_sig(name, defn)
+        return sig + space + block(body)

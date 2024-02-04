@@ -25,10 +25,10 @@ def compile_progtext(path: Path) -> iart.AnalysisGraph:
     return ic.ivy_new()
 
 
-def handle_isolate(path: Path):
+def handle_isolate(path: Path) -> terms.Program:
     with imod.Module() as im:
-        ag = compile_progtext(path)
-        print(im.sort_destructors)
+        _ag = compile_progtext(path)
+        return program_from_ivy(im)
 
 
 def binding_from_ivy_const(c: ilog.Const) -> Binding[sorts.Sort]:
