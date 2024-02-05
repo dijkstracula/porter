@@ -107,7 +107,7 @@ class JavaExtractionTests(unittest.TestCase):
         layout = Naive(80).format(extracted).layout()
         self.assertEqual(layout, "\n".join([
             "if (1 < 2) {",
-            "  f();",
+            "    f();",
             "}"
         ]))
 
@@ -121,9 +121,9 @@ class JavaExtractionTests(unittest.TestCase):
         layout = Naive(80).format(extracted).layout()
         self.assertEqual(layout, "\n".join([
             "if (1 < 2) {",
-            "  f();",
+            "    f();",
             "} else {",
-            "  g();",
+            "    g();",
             "}"
         ]))
 

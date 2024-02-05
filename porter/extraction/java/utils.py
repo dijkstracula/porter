@@ -7,11 +7,11 @@ soft_close_bracket = utils.soft_line + Text("}")
 
 
 def block(contents: Doc) -> Doc:
-    return Text("{") + Line() + Nest(2, contents) + Line() + Text("}")
+    return Text("{") + Line() + Nest(4, contents) + Line() + Text("}")
 
 
 def canonicalize_identifier(s: str) -> str:
     return s \
         .replace(".", "__") \
-        .replace(":", "__") \
-        .replace("fml", "")
+        .replace("fml:", "") \
+        .replace(":", "__")

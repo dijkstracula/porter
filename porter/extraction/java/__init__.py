@@ -33,4 +33,4 @@ def extract(isolate_name: str, prog: astterms.Program) -> Doc:
            constructor + Line() + Line() + \
            utils.join(action_docs, "\n")
 
-    return Text(f"public {isolate_name} extends Protocol ") + block(body)
+    return Text(f"public class {isolate_name} extends Protocol ") + block(body)

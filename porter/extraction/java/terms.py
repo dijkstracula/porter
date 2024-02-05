@@ -68,12 +68,19 @@ class Extractor(TermVisitor[Doc]):
     def _finish_binop(self, node: terms.BinOp, lhs_ret: Doc, rhs_ret: Doc):
         # XXX: If this is infix + we need to ensure we bound the value according to
         # the sort's range, if it has one!
-        return lhs_ret + utils.padded(node.op) + rhs_ret
+        match node.op:
+            case "and":
+                op = "&&"
+            case "or":
+                op = "||"
+            case _:
+                op = node.op
+        return lhs_ret + utils.padded(op) + rhs_ret
 
-    def _finish_exists(self, node: terms.Exists, vs: list[Binding[Doc]], expr: Doc):
+    def _finish_exists(self, node: terms.Exists, expr: Doc):
         return Text("Exists (TODO);")
 
-    def _finish_forall(self, node: terms.Forall, vs: list[Binding[Doc]], expr: Doc):
+    def _finish_forall(self, node: terms.Forall, expr: Doc):
         return Text("Forall (TODO);")
 
     def _finish_ite(self, node: terms.Ite, test: Doc, then: Doc, els: Doc):
@@ -137,7 +144,7 @@ class Extractor(TermVisitor[Doc]):
     def _finish_logical_assign(self, act: terms.LogicalAssign, assn: Doc):
         ret = Nil()
         for v in act.vars:
-            ret = ret + Text(v.sort.name() + ".forEach(") + Text(v.rep) + Text(" => { ")
+            ret = ret + Text(v.sort.name() + ".forEach(") + self._constant(v.rep) + Text(" => { ")
         ret = ret + assn
         for _ in act.vars:
             ret = ret + Text(" })")
@@ -166,6 +173,11 @@ class Extractor(TermVisitor[Doc]):
 
     def _finish_sequence(self, act: terms.Sequence, stmts: list[Doc]) -> Doc:
         return utils.join(stmts, Line())
+
+    def _finish_while(self, act: terms.While, test: Doc, decreases: Optional[Doc], do: Doc):
+        while_block = Text("while (") + test + Text(")")
+        ret = while_block + space + block(do)
+        return ret
 
     def _finish_action_def(self,
                            name: str,

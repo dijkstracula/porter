@@ -37,5 +37,5 @@ def enclosed(opened: str, d: Union[Doc, str], closed: str):
         d = Text(d)
 
     single_line = Text(opened) + d + Text(closed)
-    multi_line = Text(opened) + Line() + Nest(2, d) + Line() + Text(closed)
+    multi_line = Text(opened) + Line() + Nest(4, d) + Line() + Text(closed)
     return single_line | multi_line

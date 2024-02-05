@@ -32,7 +32,7 @@ unit_tests = [os.path.join(progdir, f) for f in os.listdir(progdir) if os.path.i
 
 @pytest.mark.parametrize("fn", unit_tests)
 def test_compile_and_extract(fn):
-    prog = compile_and_parse(fn)
+    prog = shims.handle_isolate(Path(fn))
 
     formatted = Naive(80).format(java.extract(os.path.basename(fn), prog))
     _layout = formatted.layout()
@@ -40,10 +40,19 @@ def test_compile_and_extract(fn):
 
 
 @pytest.mark.parametrize("fn", glob_progs('ivy-ts', 'src'))
-def test_ivy_ts(fn: pathlib.Path):
-    compile_and_parse(fn)
+def test_ivy_ts(fn: str):
+    _prog = shims.handle_isolate(Path(fn))
 
 
 @pytest.mark.parametrize("fn", glob_progs('accord-ivy', 'src'))
-def test_accord(fn: pathlib.Path):
-    compile_and_parse(fn)
+def test_accord_subfiles(fn: str):
+    prog = shims.handle_isolate(Path(fn))
+    formatted = Naive(80).format(java.extract(os.path.basename(fn), prog))
+    _layout = formatted.layout()
+
+
+@pytest.mark.parametrize("fn", glob_progs('accord-ivy', 'src'))
+def test_accord_subfiles(fn: str):
+    prog = shims.handle_isolate(Path(fn))
+    formatted = Naive(80).format(java.extract(os.path.basename(fn), prog))
+    _layout = formatted.layout()
