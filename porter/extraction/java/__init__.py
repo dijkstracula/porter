@@ -25,6 +25,7 @@ def extract(isolate_name: str, prog: astterms.Program) -> Doc:
     constructor = extractor.cstr(
         isolate_name,
         [b for b in prog.actions if b.decl.kind == astterms.ActionKind.EXPORTED],
+        prog.conjectures,
         extractor.inits)
 
     body = utils.join(sorts, "\n") + Line() + \

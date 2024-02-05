@@ -9,6 +9,7 @@ from ivy import ivy_compiler as ic
 from ivy import ivy_isolate as iiso
 from ivy import logic as ilog
 from ivy import ivy_module as imod
+from ivy import ivy_utils as iu
 
 from porter.ast import Binding, sorts, terms
 from . import members
@@ -16,12 +17,14 @@ from . import members
 
 def compile_progtext(path: Path) -> iart.AnalysisGraph:
     logging.info(f"Compiling {path}")
+
     cwd = os.getcwd()
     os.chdir(path.parent)
     with open(path) as f:
-        ic.ivy_load_file(f, create_isolate=False)
-        iiso.create_isolate('this')
-    os.chdir(cwd)
+        with iu.SourceFile(path):
+            ic.ivy_load_file(f, create_isolate=False)
+            iiso.create_isolate('this')
+        os.chdir(cwd)
     return ic.ivy_new()
 
 
@@ -47,7 +50,7 @@ def strip_prefixes(prefixes: list[str], sep: str, s: str) -> str:
 # Expression conversion
 
 def expr_from_apply(im: imod.Module, app: ilog.Apply) -> terms.Expr:
-    if app.func.name in ['+', "<=", "<", ">", ">="]:
+    if app.func.name in ['+', "-", "<=", "<", ">", ">="]:
         lhs = expr_from_ivy(im, app.args[0])
         rhs = expr_from_ivy(im, app.args[1])
         return terms.BinOp(app, lhs, app.func.name, rhs)
@@ -96,7 +99,7 @@ def expr_from_eq(im: imod.Module, expr: ilog.Eq) -> terms.Expr:
 
 def expr_from_not(im: imod.Module, expr: ilog.Not) -> terms.Expr:
     lhs = expr_from_ivy(im, expr.args[0])
-    return terms.UnOp(expr, "-", lhs)
+    return terms.UnOp(expr, "~", lhs)
 
 
 def expr_from_and(im: imod.Module, expr: ilog.And) -> terms.Expr:
@@ -126,6 +129,14 @@ def expr_from_forall(im: imod.Module, fmla: ilog.Exists) -> terms.Forall:
     variables = [binding_from_ivy_const(c) for c in fmla.variables]
     body = expr_from_ivy(im, fmla.body)
     return terms.Forall(fmla, variables, body)
+
+
+def expr_binding_from_labeled_formula(im: imod.Module, fmla: iast.LabeledFormula) -> Binding[terms.Expr]:
+    assert isinstance(fmla.label, iast.Atom)
+    name = fmla.label.rep
+    decl = expr_from_ivy(im, fmla.formula)
+    decl._ivy_node = fmla
+    return Binding(name, decl)
 
 
 def expr_from_ite(im: imod.Module, ite: ilog.Ite) -> terms.Ite:
@@ -376,4 +387,5 @@ def program_from_ivy(im: imod.Module) -> terms.Program:
     for name, ivy_act in im.actions.items():
         actions.append(Binding(name, action_def_from_ivy(im, name, ivy_act)))
 
-    return terms.Program(im, porter_sorts, vardecls, inits, actions)
+    conjs = [expr_binding_from_labeled_formula(im, b) for b in im.labeled_conjs]
+    return terms.Program(im, porter_sorts, vardecls, inits, actions, conjs)

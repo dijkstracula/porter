@@ -10,5 +10,6 @@ def init_parameters():
         'ui': 'none',
         'isolate_mode': 'test',
         'assume_invariants': 'false',
+        'compile_with_invariants': 'true',
         'keep_destructors': 'true'
     })

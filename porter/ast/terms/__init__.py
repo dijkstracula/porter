@@ -204,3 +204,4 @@ class Program(AST):
     individuals: list[Binding[Sort]]
     inits: list[Action]
     actions: list[Binding[ActionDefinition]]
+    conjectures: list[Binding[Expr]]

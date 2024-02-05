@@ -1,10 +1,6 @@
-import porter.ast
-from porter.ast import sorts, terms
-from porter.ast.sorts import Function
-from porter.ast.terms import Binding
+from porter.ast import terms
 from porter.ast.terms.visitor import MutVisitor
 
-from ivy import ivy_to_cpp as icpp
 from ivy import ivy_module as imod
 
 from typing import Optional

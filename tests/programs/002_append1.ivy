@@ -8,7 +8,7 @@ global {
     alias byte = uint[8]
     instance file : vector(byte)
     type pid = {0..1}
-    instance net: tcp.net(byte)
+    instance net: tcp_test.net(byte)
 }
 
 process host(self:pid) = {

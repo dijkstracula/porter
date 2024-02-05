@@ -4,21 +4,17 @@ import pathlib
 import pytest
 import warnings
 
-from . import compile_ivy, progdir
+from . import progdir
 from porter.ivy import shims
 from porter.ast import terms
 from porter.extraction import java
-from porter.extraction.java import terms as jterms
 from porter.pp.formatter import Naive
+
+from pathlib import Path
 
 
 def compile_and_parse(fn) -> terms.Program:
-    oldcwd = os.getcwd()
-    os.chdir(os.path.dirname(fn))
-    with open(fn) as f:
-        im, ag = compile_ivy(f)
-    os.chdir(oldcwd)
-    return shims.program_from_ivy(im)
+    return shims.handle_isolate(Path(fn))
 
 
 def glob_progs(*paths):

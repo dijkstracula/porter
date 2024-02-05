@@ -23,7 +23,10 @@ class Position:
 
     @staticmethod
     def from_ivy(ivy_pos: iu.LocationTuple) -> "Position":
-        return Position(ivy_pos[0] or "<stdin>", ivy_pos[1], ivy_pos.get(2))
+        if len(ivy_pos) > 2:
+            return Position(ivy_pos.filename or "<stdin>", ivy_pos.line, Position.from_ivy(ivy_pos.reference))
+        else:
+            return Position(ivy_pos.filename or "<stdin>", ivy_pos.line, None)
 
 
 @dataclass

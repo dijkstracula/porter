@@ -7,7 +7,7 @@ from porter.ast import Binding, terms
 
 from porter.ast.terms.visitor import Visitor as TermVisitor
 
-from porter.pp import Doc, Text, Line, Nest, Nil, utils
+from porter.pp import Doc, Text, Line, Nil, utils
 from porter.pp.utils import space
 
 from typing import Optional
@@ -36,10 +36,22 @@ class Extractor(TermVisitor[Doc]):
         args = [self._constant(action.name)]
         return Text(f"exportAction{arity}") + Text("(") + utils.join(args, ",") + Text(");")
 
-    def cstr(self, isolate_name: str, exports: list[Binding[terms.ActionDefinition]], inits: list[Doc]):
-        exports = [self.export_action(e) for e in exports]
+    def add_conjecture(self, conj: Binding[terms.Expr]) -> Doc:
+        name = '"' + conj.name + '"'
+        fmla = self.visit_expr(conj.decl)
+        return Text(f"addConjecture({name}, () => ") + fmla + Text(");")
 
-        body = exports + [space] + inits
+    def cstr(self,
+             isolate_name: str,
+             exports: list[Binding[terms.ActionDefinition]],
+             conjs: list[Binding[terms.Expr]],
+             inits: list[Doc]):
+        exports = [self.export_action(e) for e in exports]
+        conjs = [self.add_conjecture(conj) for conj in conjs]
+
+        body = exports + [utils.soft_line] + \
+               conjs + [utils.soft_line] + \
+               inits
         return Text(f"public {isolate_name}()") + space + block(utils.join(body, "\n"))
 
     # Expressions
@@ -54,6 +66,8 @@ class Extractor(TermVisitor[Doc]):
         return relsym_ret + utils.enclosed("(", utils.join(args_ret, ", "), ")")
 
     def _finish_binop(self, node: terms.BinOp, lhs_ret: Doc, rhs_ret: Doc):
+        # XXX: If this is infix + we need to ensure we bound the value according to
+        # the sort's range, if it has one!
         return lhs_ret + utils.padded(node.op) + rhs_ret
 
     def _finish_exists(self, node: terms.Exists, vs: list[Binding[Doc]], expr: Doc):

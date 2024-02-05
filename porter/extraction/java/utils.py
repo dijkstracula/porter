@@ -13,5 +13,5 @@ def block(contents: Doc) -> Doc:
 def canonicalize_identifier(s: str) -> str:
     return s \
         .replace(".", "__") \
-        .replace("fml:", "") \
-        .replace("ext:", "ext__")
+        .replace(":", "__") \
+        .replace("fml", "")
