@@ -4,7 +4,7 @@ from ivy import ivy_module as imod
 
 from typing import Iterable
 
-from . import extensionality
+from ..passes import extensionality
 
 
 def symbols(im: imod.Module) -> Iterable[log.Const]:

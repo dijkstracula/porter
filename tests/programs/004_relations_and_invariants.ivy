@@ -41,8 +41,8 @@ export connect
 export disconnect
 export crash
 
-invariant X = Z | ~link(X, Y) | ~link(Z, Y)
-invariant link(X, Y)
+invariant [unique_conn] X = Z | ~link(X, Y) | ~link(Z, Y)
+invariant [connect_downs_sem] forall X, Y . link(X,Y) -> ~semaphore(Y)
 
 axiom X:id < Y & Y < Z -> X < Z
 axiom ~(X:id < X)

@@ -37,7 +37,7 @@ class ExprTest(unittest.TestCase):
         self.assertTrue(body.rhs.op, "+")
 
     def test_point_update(self):
-        from porter.ivy.extensionality import is_point_update
+        from porter.passes.extensionality import is_point_update
 
         action = "action inc(n: nat) returns (m: nat) = { m := n + 1 }"
         im, compiled = compile_action("inc", action)
