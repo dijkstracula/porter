@@ -27,9 +27,13 @@ def symbols(im: imod.Module) -> Iterable[log.Const]:
 
 
 def members(im: imod.Module) -> Iterable[log.Const]:
+    defns = set([d.formula.defines().name for d in im.definitions + im.native_definitions])
     for sym in symbols(im):
-        if sym.name not in im.destructor_sorts:
-            yield sym
+        if sym.name in im.destructor_sorts:
+            continue
+        if sym.name in defns:
+            continue
+        yield sym
 
 
 def state_symbols(im: imod.Module) -> Iterable[log.Const]:

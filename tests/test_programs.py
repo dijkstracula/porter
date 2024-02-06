@@ -39,11 +39,6 @@ def test_compile_and_extract(fn):
     pass
 
 
-@pytest.mark.parametrize("fn", glob_progs('ivy-ts', 'src'))
-def test_ivy_ts(fn: str):
-    _prog = shims.handle_isolate(Path(fn))
-
-
 @pytest.mark.parametrize("fn", glob_progs('accord-ivy', 'src'))
 def test_accord_subfiles(fn: str):
     prog = shims.handle_isolate(Path(fn))
@@ -51,8 +46,8 @@ def test_accord_subfiles(fn: str):
     _layout = formatted.layout()
 
 
-@pytest.mark.parametrize("fn", glob_progs('accord-ivy', 'src'))
-def test_accord_subfiles(fn: str):
+@pytest.mark.parametrize("fn", glob_progs('ivy-ts', 'src'))
+def test_ivy_ts_subfiles(fn: str):
     prog = shims.handle_isolate(Path(fn))
     formatted = Naive(80).format(java.extract(os.path.basename(fn), prog))
     _layout = formatted.layout()

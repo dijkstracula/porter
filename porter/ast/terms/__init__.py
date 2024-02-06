@@ -184,7 +184,6 @@ ActionKind = Enum("ActionKind", ["NORMAL", "EXPORTED", "IMPORTED"])
 @dataclass
 class FunctionDefinition(AST):
     formal_params: list[Binding[Sort]]
-    ret: Sort
     body: Expr
 
 

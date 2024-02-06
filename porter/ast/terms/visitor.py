@@ -51,19 +51,19 @@ class Visitor(Generic[T]):
         self.functions = []
         for binding in prog.functions:
             name = binding.name
-            action = binding.decl
+            func = binding.decl
 
-            self._begin_action_def(name, action)
-            body = self.visit_action(action.body)
+            self._begin_function_def(name, func)
+            body = self.visit_expr(func.body)
 
             self.scopes.append(name)
-            self.actions.append(Binding(name, self._finish_action_def(name, action, body)))
+            self.functions.append(Binding(name, self._finish_function_def(name, func, body)))
             self.scopes.pop()
 
     def _begin_program(self, prog: Program):
         pass
 
-    # Action definition
+    # Lambda-oids
 
     def _begin_action_def(self, name: str, defn: ActionDefinition):
         pass
@@ -73,6 +73,15 @@ class Visitor(Generic[T]):
                            defn: ActionDefinition,
                            body: T) -> T:
         raise UnimplementedASTNodeHandler(ActionDefinition)
+
+    def _begin_function_def(self, name: str, defn: FunctionDefinition):
+        pass
+
+    def _finish_function_def(self,
+                           name: str,
+                           defn: ActionDefinition,
+                           body: T) -> T:
+        raise UnimplementedASTNodeHandler(FunctionDefinition)
 
     # Expressions
 
@@ -395,4 +404,7 @@ class MutVisitor(Visitor[None]):
         pass
 
     def _finish_action_def(self, name: str, defn: ActionDefinition, body: None):
+        pass
+
+    def _finish_function_def(self, name: str, defn: FunctionDefinition, body: None):
         pass

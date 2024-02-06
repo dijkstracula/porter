@@ -21,6 +21,7 @@ def extract(isolate_name: str, prog: astterms.Program) -> Doc:
         var_docs.append(sort + space + var + semi)
 
     action_docs = [b.decl for b in extractor.actions]
+    function_docs = [b.decl for b in extractor.functions]
 
     constructor = extractor.cstr(
         isolate_name,
@@ -28,9 +29,11 @@ def extract(isolate_name: str, prog: astterms.Program) -> Doc:
         prog.conjectures,
         extractor.inits)
 
-    body = utils.join(sorts, "\n") + Line() + \
-           utils.join(var_docs, "\n") + Line() + Line() + \
-           constructor + Line() + Line() + \
+    nlnl = Line() + Line()
+    body = utils.join(sorts, "\n") + nlnl + \
+           utils.join(var_docs, "\n") + nlnl + \
+           constructor + nlnl + \
+           utils.join(function_docs, "\n") + nlnl + \
            utils.join(action_docs, "\n")
 
     return Text(f"public class {isolate_name} extends Protocol ") + block(body)

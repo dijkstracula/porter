@@ -376,7 +376,7 @@ def action_def_from_ivy(im: imod.Module, name: str, iaction: iact.Action) -> ter
     return terms.ActionDefinition(iaction, kind, formal_params, formal_returns, body)
 
 
-def action_def_from_def(im: imod.Module, defn: iast.Definition) -> terms.FunctionDefinition:
+def function_def_from_ivy(im: imod.Module, defn: iast.Definition) -> terms.FunctionDefinition:
     kind = terms.ActionKind.NORMAL
 
     # We have to do some light surgery to mangle a function definition into FunctionDefinition.
@@ -399,10 +399,8 @@ def action_def_from_def(im: imod.Module, defn: iast.Definition) -> terms.Functio
                 raise Exception(f"Unex: {p}")
 
     rhs = expr_from_ivy(im, defn.args[1])
-    formal_returns = [Binding("ret", rhs.sort())]
 
-    body = terms.Assign(None, terms.Var(defn.args[1], "ret"), rhs)
-    return terms.ActionDefinition(defn, kind, formal_params, formal_returns, body)
+    return terms.FunctionDefinition(defn, formal_params, rhs)
 
 
 def program_from_ivy(im: imod.Module) -> terms.Program:
@@ -421,7 +419,7 @@ def program_from_ivy(im: imod.Module) -> terms.Program:
         name = lf.formula.defines().name
         if name == "<":  # HACK
             continue
-        defns.append(Binding(name, action_def_from_def(im, lf.formula)))
+        defns.append(Binding(name, function_def_from_ivy(im, lf.formula)))
 
     # functions = [expr_binding_from_labeled_formula(im, b) for b in im.sig.d]
     return terms.Program(im, porter_sorts, vardecls, inits, actions, defns, conjs)

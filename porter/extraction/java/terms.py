@@ -31,6 +31,17 @@ class Extractor(TermVisitor[Doc]):
 
         return Text("public") + space + ret + space + self._constant(name) + params
 
+    # XXX: This is pretty similar to action_sig.
+    def function_sig(self, name: str, decl: terms.FunctionDefinition) -> Doc:
+        unboxed = UnboxedSort()
+
+        param_docs = [unboxed.visit_sort(b.decl) + space + self._constant(b.name) for b in decl.formal_params]
+        params = utils.enclosed("(", utils.join(param_docs, ", "), ")")
+        ret = unboxed.visit_sort(decl.body.sort())
+
+        # This could be public but it's nice to just see visually what's an Action vs a Function.
+        return Text("protected") + space + ret + space + self._constant(name) + params
+
     def export_action(self, action: Binding[terms.ActionDefinition]) -> Doc:
         arity = len(action.decl.formal_params) + len(action.decl.formal_returns)
         args = [self._constant(action.name)]
@@ -86,8 +97,8 @@ class Extractor(TermVisitor[Doc]):
     def _finish_ite(self, node: terms.Ite, test: Doc, then: Doc, els: Doc):
         return test + utils.padded("?") + then + utils.padded(":") + els
 
-    def _finish_some(self, none: terms.Some, vs: list[Binding[Doc]], fmla: Doc):
-        raise NotImplementedError()
+    def _finish_some(self, none: terms.Some, fmla: Doc):
+        return Text("Some (TODO);")
 
     def _finish_unop(self, node: terms.UnOp, expr: Doc):
         match node.op:
@@ -184,4 +195,12 @@ class Extractor(TermVisitor[Doc]):
                            defn: terms.ActionDefinition,
                            body: Doc) -> Doc:
         sig = self.action_sig(name, defn)
+        return sig + space + block(body)
+
+    def _finish_function_def(self,
+                             name: str,
+                             defn: terms.FunctionDefinition,
+                             body: Doc) -> Doc:
+        sig = self.function_sig(name, defn)
+        body = Text("return ") + body + Text(";")
         return sig + space + block(body)
