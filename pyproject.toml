@@ -28,3 +28,4 @@ extract = 'porter:extract'
 
 [tool.pytest.ini_options]
 addopts = ["--import-mode=importlib", "-v"]
+filterwarnings = ["ignore::DeprecationWarning:.*z3.*:"]
