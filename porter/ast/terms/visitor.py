@@ -25,6 +25,7 @@ class Visitor(Generic[T]):
     individuals: list[Binding[Sort]]
     inits: list[T]
     actions: list[Binding[T]]
+    functions: list[Binding[T]]
 
     scopes: list[str] = []
 
@@ -37,6 +38,18 @@ class Visitor(Generic[T]):
 
         self.actions = []
         for binding in prog.actions:
+            name = binding.name
+            action = binding.decl
+
+            self._begin_action_def(name, action)
+            body = self.visit_action(action.body)
+
+            self.scopes.append(name)
+            self.actions.append(Binding(name, self._finish_action_def(name, action, body)))
+            self.scopes.pop()
+
+        self.functions = []
+        for binding in prog.functions:
             name = binding.name
             action = binding.decl
 

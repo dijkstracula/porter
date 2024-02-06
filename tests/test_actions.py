@@ -21,14 +21,14 @@ def compile_action(name: str, action: str) -> Tuple[imod.Module, iact.Action]:
     return im, action_ast
 
 
-class ExprTest(unittest.TestCase):
+class ActionTest(unittest.TestCase):
 
     def test_inc_action(self):
         action = "action inc(n: nat) returns (m: nat) = { m := n + 1 }"
         im, compiled = compile_action("inc", action)
         act = action_def_from_ivy(im, "inc", compiled)
-        self.assertEqual(act.formal_params, [porter.ast.Binding("n", sorts.Number.nat_sort())])
-        self.assertEqual(act.formal_returns, [porter.ast.Binding("m", sorts.Number.nat_sort())])
+        self.assertEqual(act.formal_params, [porter.ast.Binding("fml:n", sorts.Number.nat_sort())])
+        self.assertEqual(act.formal_returns, [porter.ast.Binding("fml:m", sorts.Number.nat_sort())])
 
         body = act.body
         assert isinstance(body, terms.Assign)
@@ -119,9 +119,9 @@ class ExprTest(unittest.TestCase):
         self.assertIsNone(terms.LogicalAssign.maybe_from_assign(action))
 
         action = terms.Assign(None,
-                              terms.Apply(None, "f", [terms.Var(None, "X", sorts.Bool())]),
+                              terms.Apply(None, "f", [terms.Var(None, "X")]),
                               terms.Constant(None, "false"))
         laction = terms.LogicalAssign.maybe_from_assign(action)
         self.assertIsNotNone(laction)
         assert isinstance(laction, terms.LogicalAssign)
-        self.assertEqual(laction.vars, [terms.Var(None, "X", sorts.Bool())])
+        self.assertEqual(laction.vars, [terms.Var(None, "X")])

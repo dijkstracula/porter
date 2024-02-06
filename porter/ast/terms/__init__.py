@@ -25,7 +25,6 @@ class Constant(Expr):
 @dataclass
 class Var(Expr):
     rep: str
-    sort: Sort
 
 
 @dataclass
@@ -183,6 +182,13 @@ ActionKind = Enum("ActionKind", ["NORMAL", "EXPORTED", "IMPORTED"])
 
 
 @dataclass
+class FunctionDefinition(AST):
+    formal_params: list[Binding[Sort]]
+    ret: Sort
+    body: Expr
+
+
+@dataclass
 class ActionDefinition(AST):
     kind: ActionKind
     formal_params: list[Binding[Sort]]
@@ -201,7 +207,11 @@ class Record(AST):
 @dataclass
 class Program(AST):
     sorts: list[Sort]
+
     individuals: list[Binding[Sort]]
     inits: list[Action]
+
     actions: list[Binding[ActionDefinition]]
+    functions: list[Binding[ActionDefinition]]
+
     conjectures: list[Binding[Expr]]

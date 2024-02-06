@@ -14,6 +14,8 @@ from ivy import ivy_utils as iu
 from porter.ast import Binding, sorts, terms
 from . import members
 
+from typing import Union
+
 
 def compile_progtext(path: Path) -> iart.AnalysisGraph:
     logging.info(f"Compiling {path}")
@@ -29,9 +31,15 @@ def compile_progtext(path: Path) -> iart.AnalysisGraph:
 
 
 def handle_isolate(path: Path) -> terms.Program:
-    with imod.Module() as im:
-        _ag = compile_progtext(path)
-        return program_from_ivy(im)
+    with imod.Module():
+        ag = compile_progtext(path)
+        return program_from_ivy(ag.domain)
+
+
+def binding_from_ivy_var(v: ilog.Var) -> Binding[sorts.Sort]:
+    name = v.rep
+    sort = sorts.from_ivy(v.sort)
+    return Binding(name, sort)
 
 
 def binding_from_ivy_const(c: ilog.Const) -> Binding[sorts.Sort]:
@@ -65,7 +73,7 @@ def expr_from_const(_im: imod.Module, c: ilog.Const) -> terms.Constant:
 
 
 def expr_from_var(_im: imod.Module, v: ilog.Var) -> terms.Var:
-    return terms.Var(v, v.name, sorts.from_ivy(v.sort))
+    return terms.Var(v, v.name)
 
 
 def expr_from_atom(im: imod.Module, expr: iast.Atom) -> terms.Apply:
@@ -360,22 +368,41 @@ def action_kind_from_name(name: str) -> terms.ActionKind:
 
 
 def action_def_from_ivy(im: imod.Module, name: str, iaction: iact.Action) -> terms.ActionDefinition:
-    formal_params = []
-    for p in iaction.formal_params:
-        binding = binding_from_ivy_const(p)
-        binding.name = strip_prefixes(["fml"], ":", binding.name)
-        formal_params.append(binding)
-
-    formal_returns = []
-    for p in iaction.formal_returns:
-        binding = binding_from_ivy_const(p)
-        binding.name = strip_prefixes(["fml"], ":", binding.name)
-        formal_returns.append(binding)
-
-    body = action_from_ivy(im, iaction)
     kind = action_kind_from_name(name)
+    formal_params = [binding_from_ivy_const(p) for p in iaction.formal_params]
+    formal_returns = [binding_from_ivy_const(p) for p in iaction.formal_returns]
+    body = action_from_ivy(im, iaction)
 
     return terms.ActionDefinition(iaction, kind, formal_params, formal_returns, body)
+
+
+def action_def_from_def(im: imod.Module, defn: iast.Definition) -> terms.FunctionDefinition:
+    kind = terms.ActionKind.NORMAL
+
+    # We have to do some light surgery to mangle a function definition into FunctionDefinition.
+    # The Ivy Function definition is a tuple of def(arg1, arg2, ...) iff P(arg1, arg2, ...).
+    # So, we extract the function name and argument bindings from the lhs, and the "body" of the
+    # function is the RHS.
+    #
+    # It's possible that if we treat extensional functions and "computational functions" as equivalent
+    # then we can simplify a lot of this.
+
+    lhs = expr_from_ivy(im, defn.args[0])
+    assert isinstance(lhs, terms.Apply)
+
+    formal_params = []
+    for p in lhs.args:
+        match p:
+            case terms.Constant(_, rep) | terms.Var(_, rep):
+                formal_params.append(Binding(rep, p.sort()))
+            case _:
+                raise Exception(f"Unex: {p}")
+
+    rhs = expr_from_ivy(im, defn.args[1])
+    formal_returns = [Binding("ret", rhs.sort())]
+
+    body = terms.Assign(None, terms.Var(defn.args[1], "ret"), rhs)
+    return terms.ActionDefinition(defn, kind, formal_params, formal_returns, body)
 
 
 def program_from_ivy(im: imod.Module) -> terms.Program:
@@ -388,4 +415,13 @@ def program_from_ivy(im: imod.Module) -> terms.Program:
         actions.append(Binding(name, action_def_from_ivy(im, name, ivy_act)))
 
     conjs = [expr_binding_from_labeled_formula(im, b) for b in im.labeled_conjs]
-    return terms.Program(im, porter_sorts, vardecls, inits, actions, conjs)
+
+    defns = []
+    for lf in im.definitions:
+        name = lf.formula.defines().name
+        if name == "<":  # HACK
+            continue
+        defns.append(Binding(name, action_def_from_def(im, lf.formula)))
+
+    # functions = [expr_binding_from_labeled_formula(im, b) for b in im.sig.d]
+    return terms.Program(im, porter_sorts, vardecls, inits, actions, defns, conjs)

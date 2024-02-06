@@ -46,11 +46,11 @@ class Extractor(TermVisitor[Doc]):
              exports: list[Binding[terms.ActionDefinition]],
              conjs: list[Binding[terms.Expr]],
              inits: list[Doc]):
-        exports = [self.export_action(e) for e in exports]
-        conjs = [self.add_conjecture(conj) for conj in conjs]
+        exportdocs = [self.export_action(e) for e in exports]
+        conjdocs = [self.add_conjecture(conj) for conj in conjs]
 
-        body = exports + [utils.soft_line] + \
-               conjs + [utils.soft_line] + \
+        body = exportdocs + [utils.soft_line] + \
+               conjdocs + [utils.soft_line] + \
                inits
         return Text(f"public {isolate_name}()") + space + block(utils.join(body, "\n"))
 
@@ -144,7 +144,7 @@ class Extractor(TermVisitor[Doc]):
     def _finish_logical_assign(self, act: terms.LogicalAssign, assn: Doc):
         ret = Nil()
         for v in act.vars:
-            ret = ret + Text(v.sort.name() + ".forEach(") + self._constant(v.rep) + Text(" => { ")
+            ret = ret + Text(v.sort().name() + ".forEach(") + self._constant(v.rep) + Text(" => { ")
         ret = ret + assn
         for _ in act.vars:
             ret = ret + Text(" })")

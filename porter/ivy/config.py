@@ -1,3 +1,6 @@
+from ivy import ivy_actions as ia
+from ivy import ivy_compiler as ic
+from ivy import ivy_isolate as iiso
 from ivy import ivy_utils as iu
 
 
@@ -13,3 +16,6 @@ def init_parameters():
         'compile_with_invariants': 'true',
         'keep_destructors': 'true'
     })
+    ia.set_determinize(True)
+    iiso.set_interpret_all_sorts(True)
+    ic.set_verifying(False)
