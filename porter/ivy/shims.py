@@ -14,8 +14,6 @@ from ivy import ivy_utils as iu
 from porter.ast import Binding, sorts, terms
 from . import members
 
-from typing import Union
-
 
 def compile_progtext(path: Path) -> iart.AnalysisGraph:
     logging.info(f"Compiling {path}")
@@ -31,9 +29,9 @@ def compile_progtext(path: Path) -> iart.AnalysisGraph:
 
 
 def handle_isolate(path: Path) -> terms.Program:
-    with imod.Module():
-        ag = compile_progtext(path)
-        return program_from_ivy(ag.domain)
+    with imod.Module() as im:
+        compile_progtext(path)
+        return program_from_ivy(im)
 
 
 def binding_from_ivy_var(v: ilog.Var) -> Binding[sorts.Sort]:
@@ -240,7 +238,7 @@ def while_from_ivy(im: imod.Module, iaction: iact.WhileAction) -> terms.While:
     return terms.While(iaction, cond, measure, body)
 
 
-def assert_from_ivy(im: imod.Module, iaction: iact.AssumeAction) -> terms.Assert:
+def assert_from_ivy(im: imod.Module, iaction: iact.AssertAction) -> terms.Assert:
     pred = expr_from_ivy(im, iaction.args[0])
     return terms.Assert(im, pred)
 
@@ -369,6 +367,7 @@ def action_kind_from_name(name: str) -> terms.ActionKind:
 
 def action_def_from_ivy(im: imod.Module, name: str, iaction: iact.Action) -> terms.ActionDefinition:
     kind = action_kind_from_name(name)
+    assert(hasattr(iaction, "formal_params"))
     formal_params = [binding_from_ivy_const(p) for p in iaction.formal_params]
     formal_returns = [binding_from_ivy_const(p) for p in iaction.formal_returns]
     body = action_from_ivy(im, iaction)

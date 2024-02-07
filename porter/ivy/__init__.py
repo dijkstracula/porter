@@ -13,7 +13,7 @@ def symbols(im: imod.Module) -> Iterable[log.Const]:
         if name in ["<", "<=", "=", ">", ">="]:
             continue  # XXX: disgusting hack for now
         if isinstance(sym, ilog.UnionSort):
-            for sym in sym.sort.sorts:
+            for sym in sym.sorts:
                 assert isinstance(sym, log.Const)
                 if sym not in memo:
                     memo.add(sym)

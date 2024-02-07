@@ -211,6 +211,6 @@ class Program(AST):
     inits: list[Action]
 
     actions: list[Binding[ActionDefinition]]
-    functions: list[Binding[ActionDefinition]]
+    functions: list[Binding[FunctionDefinition]]
 
     conjectures: list[Binding[Expr]]

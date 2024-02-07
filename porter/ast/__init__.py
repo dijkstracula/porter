@@ -24,6 +24,7 @@ class Position:
     @staticmethod
     def from_ivy(ivy_pos: iu.LocationTuple) -> "Position":
         if len(ivy_pos) > 2:
+            assert(isinstance(ivy_pos.reference, iu.LocationTuple))
             return Position(ivy_pos.filename or "<stdin>", ivy_pos.line, Position.from_ivy(ivy_pos.reference))
         else:
             return Position(ivy_pos.filename or "<stdin>", ivy_pos.line, None)

@@ -79,7 +79,7 @@ class Visitor(Generic[T]):
 
     def _finish_function_def(self,
                            name: str,
-                           defn: ActionDefinition,
+                           defn: FunctionDefinition,
                            body: T) -> T:
         raise UnimplementedASTNodeHandler(FunctionDefinition)
 
@@ -351,13 +351,13 @@ class MutVisitor(Visitor[None]):
         pass
 
     def _finish_ite(self, node: Ite, test: None, then: None, els: None):
-        None
+        pass
 
     def _finish_some(self, node: Some, fmla: None):
-        None
+        pass
 
     def _finish_unop(self, node: UnOp, expr: None):
-        None
+        pass
 
     # Actions
 

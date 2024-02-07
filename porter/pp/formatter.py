@@ -38,8 +38,8 @@ def simpl(d: Doc) -> Doc:
                     return rhs
                 case lhs, Nil() | Text(""):
                     return lhs
-                case Text(lhs), Text(rhs):
-                    return Text(lhs + rhs)
+                case Text(l), Text(r):
+                    return Text(l + r)
                 case Text(l), Concat(Text(r), rhs):
                     return Concat(Text(l + r), rhs)
                 case lhs, rhs:

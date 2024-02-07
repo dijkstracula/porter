@@ -37,7 +37,10 @@ class Extractor(TermVisitor[Doc]):
 
         param_docs = [unboxed.visit_sort(b.decl) + space + self._constant(b.name) for b in decl.formal_params]
         params = utils.enclosed("(", utils.join(param_docs, ", "), ")")
-        ret = unboxed.visit_sort(decl.body.sort())
+
+        ret_sort = decl.body.sort()
+        assert(ret_sort)
+        ret = unboxed.visit_sort(ret_sort)
 
         # This could be public but it's nice to just see visually what's an Action vs a Function.
         return Text("protected") + space + ret + space + self._constant(name) + params
@@ -155,7 +158,9 @@ class Extractor(TermVisitor[Doc]):
     def _finish_logical_assign(self, act: terms.LogicalAssign, assn: Doc):
         ret = Nil()
         for v in act.vars:
-            ret = ret + Text(v.sort().name() + ".forEach(") + self._constant(v.rep) + Text(" => { ")
+            vs = v.sort()
+            assert(vs)
+            ret = ret + Text(vs.name() + ".forEach(") + self._constant(v.rep) + Text(" => { ")
         ret = ret + assn
         for _ in act.vars:
             ret = ret + Text(" })")
