@@ -191,6 +191,9 @@ class FunctionDefinition(AST):
 class ActionDefinition(AST):
     kind: ActionKind
     formal_params: list[Binding[Sort]]
+    # XXX: At the moment I do not handle multiple returns.  In theory
+    # we should be able to just lift them into a Tuple at extraction
+    # time, but for the moment things will Just Blow Up, Probably.
     formal_returns: list[Binding[Sort]]
     body: Action
 
@@ -205,7 +208,7 @@ class Record(AST):
 
 @dataclass
 class Program(AST):
-    sorts: list[Sort]
+    sorts: list[Binding[Sort]]
 
     individuals: list[Binding[Sort]]
     inits: list[Action]

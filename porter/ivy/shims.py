@@ -403,7 +403,7 @@ def function_def_from_ivy(im: imod.Module, defn: iast.Definition) -> terms.Funct
 
 
 def program_from_ivy(im: imod.Module) -> terms.Program:
-    porter_sorts = [sorts.from_ivy(s) for s in im.sig.sorts.values()]
+    porter_sorts = [Binding(name, sorts.from_ivy(s)) for name, s in list(im.sig.sorts.items()) + list(im.native_types.items())]
     vardecls = [binding_from_ivy_const(sym) for sym in members(im)]
     inits = [action_from_ivy(im, a) for a in im.initial_actions]
 

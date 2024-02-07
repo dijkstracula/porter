@@ -53,6 +53,13 @@ def test_ivy_ts_subfiles(fn: str):
     _layout = formatted.layout()
 
 
+def test_linchain():
+    fn = os.path.join(progdir, '003_linchain.ivy')
+    prog = shims.handle_isolate(Path(fn))
+    formatted = Naive(80).format(java.extract(os.path.basename(fn), prog))
+    _layout = formatted.layout()
+
+
 def test_accord():
     fn = os.path.join(progdir, 'accord-ivy', 'src', 'protocol.ivy')
     prog = shims.handle_isolate(Path(fn))

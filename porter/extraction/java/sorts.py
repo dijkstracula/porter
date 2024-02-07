@@ -5,6 +5,7 @@ from porter.ast import sorts
 from porter.ast.sorts.visitor import Visitor as SortVisitor
 
 from porter.pp import Doc, Text, Nil, utils
+from porter.pp.formatter import interpolate_native
 from porter.pp.utils import space
 
 from typing import Optional
@@ -25,11 +26,14 @@ class BoxedSort(SortVisitor[Doc]):
     def _finish_function(self, node: sorts.Function, domain: list[Doc], range: Doc):
         return Text("Action") + Text(str(len(domain) + 1))  # TODO: generics
 
+    def native(self, lang: str, fmt: str, args: list[str]):
+        return interpolate_native(fmt, [Text(arg) for arg in args])
+
     def numeric(self, name: str, lo: Optional[int], hi: Optional[int]):
         return Text("Integer")
 
     def uninterpreted(self, name: str):
-        return Text("Integer")
+        return Text(name)
 
 
 class UnboxedSort(SortVisitor[Doc]):
@@ -42,7 +46,7 @@ class UnboxedSort(SortVisitor[Doc]):
         return Text("long")
 
     def enum(self, name: str, discriminants: list[str]):
-        return Text(name)
+        return Text(canonicalize_identifier(name))
 
     def _finish_function(self, node: sorts.Function, _domain: list[Doc], _range: Doc):
         boxed = BoxedSort()
@@ -51,11 +55,14 @@ class UnboxedSort(SortVisitor[Doc]):
         cls = Text("Function") + Text(str(len(type_args)))
         return cls + utils.enclosed("<", utils.join(type_args, ", "), ">")
 
+    def native(self, lang: str, fmt: str, args: list[str]):
+        return interpolate_native(fmt, [Text(arg) for arg in args])
+
     def numeric(self, name: str, lo: Optional[int], hi: Optional[int]):
         return Text("int")
 
     def uninterpreted(self, name: str):
-        return Text("int")
+        return Text(name)
 
 
 class SortDeclaration(SortVisitor[Doc]):
@@ -68,8 +75,8 @@ class SortDeclaration(SortVisitor[Doc]):
         return Nil()
 
     def enum(self, name: str, discriminants: list[str]):
-        discs = utils.join([Text(s) for s in discriminants], utils.soft_comma)
-        return Text("public enum ") + Text(name) + space + block(discs)
+        discs = utils.join([Text(canonicalize_identifier(s)) for s in discriminants], utils.soft_comma)
+        return Text("public enum ") + Text(canonicalize_identifier(name)) + space + block(discs)
 
     def _finish_function(self, node: sorts.Function, domain: list[Doc], range: Doc):
         boxed = BoxedSort()
@@ -77,6 +84,9 @@ class SortDeclaration(SortVisitor[Doc]):
 
         cls = Text("Function") + Text(str(len(type_args)))
         return cls + utils.enclosed("<", utils.join(type_args, ", "), ">")
+
+    def native(self, lang: str, fmt: str, args: list[str]):
+        return Nil()  # TODO: should this be a typedef or something?
 
     def numeric(self, name: str, lo: Optional[int], hi: Optional[int]):
         return Nil()

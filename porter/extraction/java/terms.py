@@ -8,6 +8,7 @@ from porter.ast import Binding, terms
 from porter.ast.terms.visitor import Visitor as TermVisitor
 
 from porter.pp import Doc, Text, Line, Nil, utils
+from porter.pp.formatter import interpolate_native
 from porter.pp.utils import space
 
 from typing import Optional
@@ -31,6 +32,18 @@ class Extractor(TermVisitor[Doc]):
 
         return Text("public") + space + ret + space + self._constant(name) + params
 
+    def action_body(self, rets: list[Binding[sorts.Sort]], body: Doc):
+        if len(rets) == 0:
+            return body  # This is a void function.
+        if len(rets) > 1:
+            raise Exception("TODO: multiple returns")
+        ret = rets[0]
+        retname = self._constant(ret.name)
+        retdecl = UnboxedSort().visit_sort(ret.decl) + space + retname + semi
+        retstmt = Text("return ") + retname + semi
+
+        return retdecl + Line() + body + Line() + retstmt
+
     # XXX: This is pretty similar to action_sig.
     def function_sig(self, name: str, decl: terms.FunctionDefinition) -> Doc:
         unboxed = UnboxedSort()
@@ -39,7 +52,7 @@ class Extractor(TermVisitor[Doc]):
         params = utils.enclosed("(", utils.join(param_docs, ", "), ")")
 
         ret_sort = decl.body.sort()
-        assert(ret_sort)
+        assert ret_sort
         ret = unboxed.visit_sort(ret_sort)
 
         # This could be public but it's nice to just see visually what's an Action vs a Function.
@@ -157,35 +170,19 @@ class Extractor(TermVisitor[Doc]):
 
     def _finish_logical_assign(self, act: terms.LogicalAssign, assn: Doc):
         ret = Nil()
+        boxed = BoxedSort()
         for v in act.vars:
             vs = v.sort()
-            assert(vs)
-            ret = ret + Text(vs.name() + ".forEach(") + self._constant(v.rep) + Text(" => { ")
+            assert (vs)
+            ret = ret + boxed.visit_sort(vs) + Text(".forEach(") + self._constant(v.rep) + Text(" => { ")
         ret = ret + assn
         for _ in act.vars:
             ret = ret + Text(" })")
         return ret
 
     def _finish_native(self, act: terms.Native, args: list[Doc]) -> Doc:
-        pat = r"`(\d+)`"
-        ret = Nil()
-
-        for line in act.fmt.split("\n"):
-            # line = line.strip()
-
-            # TODO: bail out if we have not translated the Native out of C++.
-            curr_begin = 0
-            m = re.search(pat, line[curr_begin:])
-            while m:
-                idx = int(m.group(1))
-                text = line[curr_begin: curr_begin + m.start()].strip()
-                ret = ret + Text(text) + args[idx]
-
-                curr_begin = curr_begin + m.end()
-                m = re.search(pat, line[curr_begin:])
-
-            ret = ret + Text(line[curr_begin:]) + Line()
-        return ret
+        # TODO: bail out if we have not translated the Native out of C++.
+        return interpolate_native(act.fmt, args)
 
     def _finish_sequence(self, act: terms.Sequence, stmts: list[Doc]) -> Doc:
         return utils.join(stmts, Line())
@@ -200,7 +197,7 @@ class Extractor(TermVisitor[Doc]):
                            defn: terms.ActionDefinition,
                            body: Doc) -> Doc:
         sig = self.action_sig(name, defn)
-        return sig + space + block(body)
+        return sig + space + block(self.action_body(defn.formal_returns, body))
 
     def _finish_function_def(self,
                              name: str,

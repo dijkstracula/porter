@@ -1,5 +1,29 @@
 from . import *
 
+import re
+
+
+def interpolate_native(fmt: str, args: list[Doc]):
+    pat = r"`(\d+)`"
+    ret = Nil()
+
+    for line in fmt.split("\n"):
+        # line = line.strip()
+
+        # TODO: bail out if we have not translated the Native out of C++.
+        curr_begin = 0
+        m = re.search(pat, line[curr_begin:])
+        while m:
+            idx = int(m.group(1))
+            text = line[curr_begin: curr_begin + m.start()].strip()
+            ret = ret + Text(text) + args[idx]
+
+            curr_begin = curr_begin + m.end()
+            m = re.search(pat, line[curr_begin:])
+
+        ret = ret + Text(line[curr_begin:]) + Line()
+    return ret
+
 
 # A formatter consumes a Document that may contain Choices,
 # and chooses between them such that the resulting Document

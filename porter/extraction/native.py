@@ -4,6 +4,7 @@ from porter.ast.terms.visitor import MutVisitor
 from typing import Tuple
 
 
+# TODO: Will also need one for NativeTypes.
 class NativeRewriter(MutVisitor):
     natives: dict[Tuple[str, int], str]
 
@@ -14,6 +15,7 @@ class NativeRewriter(MutVisitor):
         pos = act.pos()
         if pos is None:
             # Not annotated with an Ivy source location, so nothing we can expect to do...
+            # TODO: warn
             return
         loc = pos.filename, pos.line
         replacement_fmt = self.natives.get(loc)

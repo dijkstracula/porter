@@ -32,7 +32,7 @@ class Visitor(Generic[T]):
     def visit_program(self, prog: Program):
         self._begin_program(prog)
 
-        self.sorts = {s.name(): s for s in prog.sorts}
+        self.sorts = {b.name: b.decl for b in prog.sorts}
         self.individuals = prog.individuals
         self.inits = [self.visit_action(a) for a in prog.inits]
 

@@ -1,6 +1,7 @@
+from ivy import ivy_ast as iast
 from ivy import logic as ilog
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Optional
 
 # Sorts
@@ -10,22 +11,24 @@ SortName = str
 
 @dataclass(frozen=True)
 class Sort:
-    def name(self):
-        raise NotImplementedError
+    pass
 
 
 @dataclass(frozen=True)
 class Uninterpreted(Sort):
     sort_name: str
 
-    def name(self):
-        return self.sort_name
-
 
 @dataclass(frozen=True)
 class Bool(Sort):
-    def name(self):
-        return "bool"
+    pass
+
+
+@dataclass(frozen=True)
+class Native(Sort):
+    lang: str
+    fmt: str  # TODO: in Ivy this is a NativeCode
+    args: list  # TODO: of what?
 
 
 @dataclass(frozen=True)
@@ -48,11 +51,7 @@ class Number(Sort):
 
 @dataclass(frozen=True)
 class BitVec(Sort):
-    sort_name: str
     width: int
-
-    def name(self):
-        return self.sort_name
 
 
 @dataclass(frozen=True)
@@ -60,17 +59,11 @@ class Enumeration(Sort):
     sort_name: str
     discriminants: tuple[str, ...]
 
-    def name(self):
-        return self.sort_name
-
 
 @dataclass(frozen=True)
 class Function(Sort):
     domain: list[Sort]
     range: Sort
-
-    def name(self):
-        return f"Function<{','.join([s.name() for s in self.domain])},{self.range.name()}>"
 
 
 def from_ivy(sort) -> Sort:
@@ -93,4 +86,10 @@ def from_ivy(sort) -> Sort:
         domain = [from_ivy(s) for s in sort.domain]
         ret = from_ivy(sort.range)
         return Function(domain, ret)
+    if isinstance(sort, iast.NativeType):
+        native_code = sort.args[0]
+        assert isinstance(native_code, iast.NativeCode)
+        native_blob = native_code.code
+        args = [str(arg) for arg in sort.args[1:]]
+        return Native("c++", native_blob, args)
     raise Exception(f"TODO {type(sort)}")

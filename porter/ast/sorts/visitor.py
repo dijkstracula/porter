@@ -1,6 +1,6 @@
 from typing import Generic, Optional, TypeVar
 
-from porter.ast.sorts import Bool, BitVec, Enumeration, Function, Number, Uninterpreted, Sort
+from porter.ast.sorts import Bool, BitVec, Enumeration, Function, Native, Number, Uninterpreted, Sort
 
 T = TypeVar("T")
 
@@ -21,8 +21,8 @@ class Visitor(Generic[T]):
         match sort:
             case Bool():
                 return self.bool()
-            case BitVec(name, width):
-                return self.bv(name, width)
+            case BitVec(width):
+                return self.bv(width)
             case Enumeration(name, discs):
                 return self.enum(name, discs)
             case Function(domain, range):
@@ -30,6 +30,8 @@ class Visitor(Generic[T]):
                 domain = [self.visit_sort(d) for d in domain]
                 range = self.visit_sort(range)
                 return self._finish_function(sort, domain, range)
+            case Native(lang, fmt, args):
+                return self.native(lang, fmt, args)
             case Number(name, lo, hi):
                 return self.numeric(name, lo, hi)
             case Uninterpreted(name):
@@ -39,7 +41,7 @@ class Visitor(Generic[T]):
     def bool(self) -> T:
         raise UnimplementedASTNodeHandler(Bool)
 
-    def bv(self, name: str, width: int) -> T:
+    def bv(self, width: int) -> T:
         raise UnimplementedASTNodeHandler(BitVec)
 
     def enum(self, name: str, discriminants: tuple[str, ...]):
@@ -50,6 +52,12 @@ class Visitor(Generic[T]):
 
     def _finish_function(self, node: Function, domain: list[T], range: T) -> T:
         raise UnimplementedASTNodeHandler(Function)
+
+    def enum(self, name: str, discriminants: tuple[str, ...]):
+        raise UnimplementedASTNodeHandler(Enumeration)
+
+    def native(self, lang: str, fmt: str, args: list[str]):
+        raise UnimplementedASTNodeHandler(Native)
 
     def numeric(self, name: str, lo: Optional[int], hi: Optional[int]):
         raise UnimplementedASTNodeHandler(Number)
