@@ -12,6 +12,8 @@ from ivy import ivy_module as imod
 from ivy import ivy_utils as iu
 
 from porter.ast import Binding, sorts, terms
+from porter.passes.reinterpret_uninterps import ReinterpretUninterps
+
 from . import members
 
 
@@ -34,23 +36,16 @@ def handle_isolate(path: Path) -> terms.Program:
         return program_from_ivy(im)
 
 
-def binding_from_ivy_var(v: ilog.Var) -> Binding[sorts.Sort]:
+def binding_from_ivy_var(im: imod.Module, v: ilog.Var) -> Binding[sorts.Sort]:
     name = v.rep
     sort = sorts.from_ivy(v.sort)
     return Binding(name, sort)
 
 
-def binding_from_ivy_const(c: ilog.Const) -> Binding[sorts.Sort]:
+def binding_from_ivy_const(im: imod.Module, c: ilog.Const) -> Binding[sorts.Sort]:
     name = c.name
     sort = sorts.from_ivy(c.sort)
     return Binding(name, sort)
-
-
-def strip_prefixes(prefixes: list[str], sep: str, s: str) -> str:
-    prefix = sep.join(prefixes) + sep
-    if s.startswith(prefix):
-        return s[len(prefix):]
-    return s
 
 
 # Expression conversion
@@ -126,13 +121,13 @@ def expr_from_iff(im: imod.Module, expr: ilog.Iff) -> terms.BinOp:
 
 
 def expr_from_exists(im: imod.Module, fmla: ilog.Exists) -> terms.Exists:
-    variables = [binding_from_ivy_const(c) for c in fmla.variables]
+    variables = [binding_from_ivy_const(im, c) for c in fmla.variables]
     body = expr_from_ivy(im, fmla.body)
     return terms.Exists(fmla, variables, body)
 
 
 def expr_from_forall(im: imod.Module, fmla: ilog.Exists) -> terms.Forall:
-    variables = [binding_from_ivy_const(c) for c in fmla.variables]
+    variables = [binding_from_ivy_const(im, c) for c in fmla.variables]
     body = expr_from_ivy(im, fmla.body)
     return terms.Forall(fmla, variables, body)
 
@@ -160,7 +155,7 @@ def expr_from_some(im: imod.Module, expr: iast.Some) -> terms.Some:
     else:
         strat = terms.SomeStrategy.ARBITRARY
 
-    variables = [binding_from_ivy_const(c) for c in expr.args[0:-1]]
+    variables = [binding_from_ivy_const(im, c) for c in expr.args[0:-1]]
     fmla = expr_from_ivy(im, expr.args[-1])
     return terms.Some(expr, variables, fmla, strat)
 
@@ -288,7 +283,7 @@ def havok_from_ivy(im: imod.Module, iaction: iact.HavocAction) -> terms.Havok:
 
 
 def local_from_ivy(im: imod.Module, iaction: iact.LocalAction) -> terms.Let:
-    varnames = [binding_from_ivy_const(c) for c in iaction.args[:-1]]
+    varnames = [binding_from_ivy_const(im, c) for c in iaction.args[:-1]]
     act = action_from_ivy(im, iaction.args[-1])
     return terms.Let(im, varnames, act)
 
@@ -330,33 +325,6 @@ def action_from_ivy(im: imod.Module, act: iact.Action) -> terms.Action:
     raise Exception(f"TODO: {type(act)}")
 
 
-def record_from_ivy(im: imod.Module, name: str) -> terms.Record:
-    if name not in im.sort_destructors:
-        raise Exception(f"is {name} the name of a class?")
-
-    # TODO: we should accumulate scopes, I think - nested classes may require more than one name
-    # to be stripped.  Should name instead be a scoping context, maybe of type [str]?
-
-    fields = []
-    for c in im.sort_destructors[name]:
-        f = Binding(c.name, sorts.from_ivy(c.sort))
-        f.name = strip_prefixes([name], ".", f.name)
-        assert isinstance(f.decl, sorts.Function)
-        f.decl = f.decl.range
-        fields.append(f)
-
-    actions = []
-    for (action_name, action) in im.actions.items():
-        if not action_name.startswith(name):
-            continue
-        action_name = strip_prefixes([name], ".", action_name)
-        action = action_def_from_ivy(im, action_name, action)
-        actions.append(Binding(action_name, action))
-
-    # TODO: What's a good ivy ast to pass in here?
-    return terms.Record(None, fields, actions)
-
-
 def action_kind_from_name(name: str) -> terms.ActionKind:
     if name.startswith("ext:"):
         return terms.ActionKind.EXPORTED
@@ -367,9 +335,9 @@ def action_kind_from_name(name: str) -> terms.ActionKind:
 
 def action_def_from_ivy(im: imod.Module, name: str, iaction: iact.Action) -> terms.ActionDefinition:
     kind = action_kind_from_name(name)
-    assert(hasattr(iaction, "formal_params"))
-    formal_params = [binding_from_ivy_const(p) for p in iaction.formal_params]
-    formal_returns = [binding_from_ivy_const(p) for p in iaction.formal_returns]
+    assert (hasattr(iaction, "formal_params"))
+    formal_params = [binding_from_ivy_const(im, p) for p in iaction.formal_params]
+    formal_returns = [binding_from_ivy_const(im, p) for p in iaction.formal_returns]
     body = action_from_ivy(im, iaction)
 
     return terms.ActionDefinition(iaction, kind, formal_params, formal_returns, body)
@@ -403,8 +371,24 @@ def function_def_from_ivy(im: imod.Module, defn: iast.Definition) -> terms.Funct
 
 
 def program_from_ivy(im: imod.Module) -> terms.Program:
-    porter_sorts = [Binding(name, sorts.from_ivy(s)) for name, s in list(im.sig.sorts.items()) + list(im.native_types.items())]
-    vardecls = [binding_from_ivy_const(sym) for sym in members(im)]
+    porter_sorts = {}
+    for name, ivy_sort in list(im.sig.sorts.items()) + list(im.native_types.items()):
+        porter_sort = sorts.from_ivy(ivy_sort)
+        if name in im.sort_destructors:
+            porter_sort = sorts.record_from_ivy(im, name)
+        porter_sorts[name] = porter_sort
+
+    # At this point, Records are going to marked as bound but typed as Uninterpreted.
+    # Do a pass to patch those up.
+    # Seems like we have a similar problem with Natives.  (TODO: what else???)
+    to_remap = {name: sorts.record_from_ivy(im, name) for name in im.sort_destructors}
+    to_remap.update({name: sort for name, sort in porter_sorts.items() if isinstance(sort, sorts.Native)})
+    # TODO: also walk sig.interp, but that mapping's values are not well typed so I don't know how to handle them yet.
+
+    uninterp_to_record = ReinterpretUninterps(to_remap)
+    porter_sorts = {name: uninterp_to_record.visit_sort(s) for name, s in porter_sorts.items()}
+
+    vardecls = [binding_from_ivy_const(im, sym) for sym in members(im)]
     inits = [action_from_ivy(im, a) for a in im.initial_actions]
 
     actions = []
@@ -420,5 +404,4 @@ def program_from_ivy(im: imod.Module) -> terms.Program:
             continue
         defns.append(Binding(name, function_def_from_ivy(im, lf.formula)))
 
-    # functions = [expr_binding_from_labeled_formula(im, b) for b in im.sig.d]
     return terms.Program(im, porter_sorts, vardecls, inits, actions, defns, conjs)

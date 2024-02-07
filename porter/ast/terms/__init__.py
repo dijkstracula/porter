@@ -198,17 +198,11 @@ class ActionDefinition(AST):
     body: Action
 
 
-@dataclass
-class Record(AST):
-    fields: list[Binding[Sort]]
-    actions: list[Binding[ActionDefinition]]
-
-
 #
 
 @dataclass
 class Program(AST):
-    sorts: list[Binding[Sort]]
+    sorts: dict[str, Sort]
 
     individuals: list[Binding[Sort]]
     inits: list[Action]

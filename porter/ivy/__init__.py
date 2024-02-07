@@ -2,7 +2,7 @@ from ivy import ivy_logic as ilog
 from ivy import logic as log
 from ivy import ivy_module as imod
 
-from typing import Iterable
+from typing import Iterable, Tuple
 
 from ..passes import extensionality
 

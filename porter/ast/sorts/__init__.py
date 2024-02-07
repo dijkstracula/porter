@@ -1,12 +1,11 @@
 from ivy import ivy_ast as iast
+from ivy import ivy_module as imod
 from ivy import logic as ilog
 
 from dataclasses import dataclass
 from typing import Optional
 
 # Sorts
-
-SortName = str
 
 
 @dataclass(frozen=True)
@@ -66,6 +65,45 @@ class Function(Sort):
     range: Sort
 
 
+@dataclass(frozen=True)
+class Record(Sort):
+    name: str
+    fields: dict[str, Sort]
+
+
+def strip_prefixes(prefixes: list[str], sep: str, s: str) -> str:
+    prefix = sep.join(prefixes) + sep
+    if s.startswith(prefix):
+        return s[len(prefix):]
+    return s
+
+
+def record_from_ivy(im: imod.Module, name: str) -> Record:
+    if name not in im.sort_destructors:
+        raise Exception(f"is {name} the name of a class?")
+
+    # TODO: we should accumulate scopes, I think - nested classes may require more than one name
+    # to be stripped.  Should name instead be a scoping context, maybe of type [str]?
+
+    fields = {}
+    for c in im.sort_destructors[name]:
+        field_name = strip_prefixes([name], ".", c.name)
+        field_sort = from_ivy(c.sort)
+        assert isinstance(field_sort, Function)
+        fields[field_name] = field_sort.range
+
+    # Ivy will flatten out methods for us.
+    # actions = []
+    # for (action_name, action) in im.actions.items():
+    #    if not action_name.startswith(name):
+    #        continue
+    #    action_name = strip_prefixes([name], ".", action_name)
+    #    action = action_def_from_ivy(im, action_name, action)
+    #    actions.append(Binding(action_name, action))
+
+    return Record(name, fields)
+
+
 def from_ivy(sort) -> Sort:
     if hasattr(sort, "name"):
         name = sort.name
@@ -89,7 +127,7 @@ def from_ivy(sort) -> Sort:
     if isinstance(sort, iast.NativeType):
         native_code = sort.args[0]
         assert isinstance(native_code, iast.NativeCode)
-        native_blob = native_code.code
+        native_blob = native_code.code.strip()
         args = [str(arg) for arg in sort.args[1:]]
         return Native("c++", native_blob, args)
     raise Exception(f"TODO {type(sort)}")

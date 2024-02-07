@@ -18,7 +18,9 @@ class BoxedSort(SortVisitor[Doc]):
     def bv(self, name: str, width: int):
         if width > 64:
             raise Exception("BV too wide")
-        return Text("Long")
+        if width > 8:
+            return Text("Long")
+        return Text("Byte")
 
     def enum(self, name: str, discriminants: list[str]):
         return Text(name)
@@ -32,8 +34,11 @@ class BoxedSort(SortVisitor[Doc]):
     def numeric(self, name: str, lo: Optional[int], hi: Optional[int]):
         return Text("Integer")
 
+    def _finish_record(self, rec: sorts.Record, fields: dict[str, Doc]):
+        return Text(canonicalize_identifier(rec.name))
+
     def uninterpreted(self, name: str):
-        return Text(name)
+        return Text("Integer")
 
 
 class UnboxedSort(SortVisitor[Doc]):
@@ -43,7 +48,9 @@ class UnboxedSort(SortVisitor[Doc]):
     def bv(self, name: str, width: int):
         if width > 64:
             raise Exception("BV too wide")
-        return Text("long")
+        if width > 8:
+            return Text("long")
+        return Text("byte")
 
     def enum(self, name: str, discriminants: list[str]):
         return Text(canonicalize_identifier(name))
@@ -61,8 +68,11 @@ class UnboxedSort(SortVisitor[Doc]):
     def numeric(self, name: str, lo: Optional[int], hi: Optional[int]):
         return Text("int")
 
+    def _finish_record(self, rec: sorts.Record, fields: dict[str, Doc]):
+        return Text(canonicalize_identifier(rec.name))
+
     def uninterpreted(self, name: str):
-        return Text(name)
+        return Text("int")
 
 
 class SortDeclaration(SortVisitor[Doc]):
@@ -90,6 +100,11 @@ class SortDeclaration(SortVisitor[Doc]):
 
     def numeric(self, name: str, lo: Optional[int], hi: Optional[int]):
         return Nil()
+
+    def _finish_record(self, rec: sorts.Record, fields: dict[str, Doc]):
+        unboxed = UnboxedSort()
+        fields = [unboxed.visit_sort(s) + space + Text(name) + Text(";") for name, s in rec.fields.items()]
+        return Text("public class " + canonicalize_identifier(rec.name)) + space + block(utils.join(fields, "\n"))
 
     def uninterpreted(self, name: str):
         return Nil()
