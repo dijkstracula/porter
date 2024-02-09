@@ -134,7 +134,7 @@ class JavaExtractionTests(unittest.TestCase):
         extracted = self.extractor.visit_action(stmt)
         layout = Naive(80).format(extracted).layout()
         self.assertEqual(layout, "\n".join([
-            "int x;",
+            "int x = 0;",
             "x = 42;"
         ]))
 
@@ -148,8 +148,8 @@ class JavaExtractionTests(unittest.TestCase):
         extracted = self.extractor.visit_action(stmt)
         layout = Naive(80).format(extracted).layout()
         self.assertEqual(layout, "\n".join([
-            "int x;",
-            "bool y;",
+            "int x = 0;",
+            "boolean y = false;",
             "x = 42;",
             "y = true;",
         ]))

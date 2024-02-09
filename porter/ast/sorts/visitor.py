@@ -1,6 +1,7 @@
 from typing import Generic, Optional, TypeVar
 
 from porter.ast.sorts import Bool, BitVec, Enumeration, Function, Native, Number, Record, Uninterpreted, Sort
+from porter.ivy import Position
 
 T = TypeVar("T")
 
@@ -30,8 +31,8 @@ class Visitor(Generic[T]):
                 domain = [self.visit_sort(d) for d in domain]
                 range = self.visit_sort(range)
                 return self._finish_function(sort, domain, range)
-            case Native(lang, fmt, args):
-                return self.native(lang, fmt, args)
+            case Native(loc, fmt, args):
+                return self.native(loc, fmt, args)
             case Number(name, lo, hi):
                 return self.numeric(name, lo, hi)
             case Record(_name, fields):
@@ -57,10 +58,7 @@ class Visitor(Generic[T]):
     def _finish_function(self, node: Function, domain: list[T], range: T) -> T:
         raise UnimplementedASTNodeHandler(Function)
 
-    def enum(self, name: str, discriminants: tuple[str, ...]):
-        raise UnimplementedASTNodeHandler(Enumeration)
-
-    def native(self, lang: str, fmt: str, args: list[str]):
+    def native(self, loc: Position, fmt: str, args: list[str]):
         raise UnimplementedASTNodeHandler(Native)
 
     def numeric(self, name: str, lo: Optional[int], hi: Optional[int]):
@@ -83,9 +81,6 @@ class MutVisitor(Visitor[None]):
     def bv(self, width: int):
         pass
 
-    def enum(self, name: str, discriminants: tuple[str, ...]):
-        pass
-
     def _begin_function(self, node: Function):
         pass
 
@@ -95,13 +90,13 @@ class MutVisitor(Visitor[None]):
     def enum(self, name: str, discriminants: tuple[str, ...]):
         pass
 
-    def native(self, lang: str, fmt: str, args: list[str]):
+    def native(self, lang: Position, fmt: str, args: list[str]):
         pass
 
     def numeric(self, name: str, lo: Optional[int], hi: Optional[int]):
         pass
 
-    def _finish_record(self, name: str, fields: dict[str, T]) -> None:
+    def _finish_record(self, name: str, fields: dict[str, None]) -> None:
         pass
 
     def uninterpreted(self, name: str) -> None:

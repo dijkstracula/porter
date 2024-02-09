@@ -8,6 +8,9 @@ def interpolate_native(fmt: str, args: list[Doc]):
     ret = Nil()
 
     for line in fmt.split("\n"):
+        if not isinstance(ret, Nil):
+            ret = ret + Line()
+
         line = line.strip()
 
         # TODO: bail out if we have not translated the Native out of C++.

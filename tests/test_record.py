@@ -1,4 +1,7 @@
 from porter.ast import sorts
+from porter.ivy import shims
+from porter.pp.formatter import Naive
+from porter.extraction import java
 
 from . import compile_toplevel
 
@@ -49,4 +52,30 @@ class RecordTest(unittest.TestCase):
         # self.assertEqual(type(rec.actions[0].decl), terms.ActionDefinition)
         # self.assertTrue(type(rec.actions[0].decl.formal_params[0].name), "self")
         # self.assertTrue(type(rec.actions[0].decl.formal_returns[0].name), "z")
+        pass
+
+    def test_field_gen(self):
+        cls = """class foo = { 
+                field x: nat
+                field y: nat
+                action sum(self: foo) returns (z: nat) = {
+                  z := self.x + self.y 
+                }
+              }
+              after init {
+                var f: foo;
+                f.x := f.x;
+                var z := f.sum();
+              }"""
+        im, _ = compile_toplevel(cls)
+
+        prog = shims.program_from_ivy(im)
+
+        assert prog.actions[0].name == "foo.sum"
+        sum_action = prog.actions[0].decl
+
+        # `self` will be Uninterpreted out from Ivy unless we patch it correctly in program_from_ivy().
+        assert isinstance(sum_action.formal_params[0].decl, sorts.Record)
+
+        #extractor = java.extract("test_field_gen", prog)
         pass

@@ -1,6 +1,7 @@
 from typing import Generic
 
 from porter.ast.sorts import Bool, BitVec, Enumeration, Function, Number, Uninterpreted
+from porter.ast.sorts.visitor import Visitor as SortVisitor
 from porter.ast.terms import *
 
 T = TypeVar("T")
@@ -28,6 +29,12 @@ class Visitor(Generic[T]):
     functions: list[Binding[T]]
 
     scopes: list[str] = []
+
+    @staticmethod
+    def visit_program_sorts(prog: Program, visitor: SortVisitor[Sort]):
+        # TODO: this is a dumb place for this to live.
+        prog.sorts = {name: visitor.visit_sort(s) for name, s in prog.sorts.items()}
+        prog.individuals = [Binding(b.name, visitor.visit_sort(b.decl)) for b in prog.individuals]
 
     def visit_program(self, prog: Program):
         self._begin_program(prog)

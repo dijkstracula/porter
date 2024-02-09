@@ -1,5 +1,7 @@
 from dataclasses import dataclass, field
 
+from porter.ivy import Position
+
 from ivy import ivy_utils as iu
 
 from porter.ast import sorts
@@ -14,20 +16,6 @@ class Binding(Generic[T]):
     name: str
     decl: T
 
-
-@dataclass
-class Position:
-    filename: str
-    line: int
-    reference: Optional["Position"]
-
-    @staticmethod
-    def from_ivy(ivy_pos: iu.LocationTuple) -> "Position":
-        if len(ivy_pos) > 2:
-            assert(isinstance(ivy_pos.reference, iu.LocationTuple))
-            return Position(ivy_pos.filename or "<stdin>", ivy_pos.line, Position.from_ivy(ivy_pos.reference))
-        else:
-            return Position(ivy_pos.filename or "<stdin>", ivy_pos.line, None)
 
 
 @dataclass

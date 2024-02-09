@@ -12,7 +12,7 @@ from ivy import ivy_module as imod
 from ivy import ivy_utils as iu
 
 from porter.ast import Binding, sorts, terms
-from porter.passes.reinterpret_uninterps import ReinterpretUninterps
+from porter.passes.reinterpret_uninterps import ReinterpretUninterpreted
 
 from . import members
 
@@ -377,17 +377,6 @@ def program_from_ivy(im: imod.Module) -> terms.Program:
         if name in im.sort_destructors:
             porter_sort = sorts.record_from_ivy(im, name)
         porter_sorts[name] = porter_sort
-
-    # At this point, Records are going to marked as bound but typed as Uninterpreted.
-    # Do a pass to patch those up.
-    # Seems like we have a similar problem with Natives.  (TODO: what else???)
-    to_remap = {name: sorts.record_from_ivy(im, name) for name in im.sort_destructors}
-    to_remap.update({name: sort for name, sort in porter_sorts.items() if isinstance(sort, sorts.Native)})
-    # TODO: also walk sig.interp, but that mapping's values are not well typed so I don't know how to handle them yet.
-
-    uninterp_to_record = ReinterpretUninterps(to_remap)
-    porter_sorts = {name: uninterp_to_record.visit_sort(s) for name, s in porter_sorts.items()}
-
     vardecls = [binding_from_ivy_const(im, sym) for sym in members(im)]
     inits = [action_from_ivy(im, a) for a in im.initial_actions]
 
@@ -404,4 +393,17 @@ def program_from_ivy(im: imod.Module) -> terms.Program:
             continue
         defns.append(Binding(name, function_def_from_ivy(im, lf.formula)))
 
-    return terms.Program(im, porter_sorts, vardecls, inits, actions, defns, conjs)
+    # At this point, Records are going to marked as bound but typed as Uninterpreted.
+    # Do a pass to patch those up.
+    # Seems like we have a similar problem with Natives.  (TODO: what else???)
+    to_remap: dict[str, sorts.Sort] = {name: sorts.record_from_ivy(im, name) for name in im.sort_destructors}
+    to_remap.update({name: sort for name, sort in porter_sorts.items() if isinstance(sort, sorts.Native)})
+    # TODO: also walk sig.interp, but that mapping's values are not well typed so I don't know how to handle them yet.
+
+    prog = terms.Program(im, porter_sorts, vardecls, inits, actions, defns, conjs)
+
+    reinterp = ReinterpretUninterpreted(to_remap)
+    reinterp.visit_program(prog)
+    reinterp.visit_program_sorts(prog, reinterp.sort_visitor)
+
+    return prog

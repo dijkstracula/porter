@@ -14,4 +14,7 @@ def canonicalize_identifier(s: str) -> str:
     return s \
         .replace(".", "__") \
         .replace("fml:", "") \
-        .replace(":", "__")
+        .replace(":", "__") \
+        .replace("[", "_of_") \
+        .replace("]", "_") \
+

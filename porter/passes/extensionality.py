@@ -20,12 +20,6 @@ def is_point_update(ia: terms.Action) -> bool:
     return False
 
 
-def sort_has_domain(sort) -> bool:
-    if not hasattr(sort, "dom"):
-        return False
-    return len(sort.dom) > 0
-
-
 def cardinality(s) -> Optional[int]:
     if hasattr(s, 'card'):
         return s.card
@@ -75,4 +69,3 @@ class NonExtensionals(MutVisitor):
         # b) otherwise, ever updated with a non-point lhs
         elif any([isinstance(arg, terms.Var) for arg in args]):
             self.nons.add(relsym)
-

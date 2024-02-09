@@ -1,10 +1,26 @@
 from ivy import ivy_logic as ilog
 from ivy import logic as log
 from ivy import ivy_module as imod
+from ivy import ivy_utils as iu
 
-from typing import Iterable, Tuple
+from dataclasses import dataclass
 
-from ..passes import extensionality
+from typing import Iterable, Optional
+
+
+@dataclass
+class Position:
+    filename: str
+    line: int
+    reference: Optional["Position"]
+
+    @staticmethod
+    def from_ivy(ivy_pos: iu.LocationTuple) -> "Position":
+        if len(ivy_pos) > 2:
+            assert (isinstance(ivy_pos.reference, iu.LocationTuple))
+            return Position(ivy_pos.filename or "<stdin>", ivy_pos.line, Position.from_ivy(ivy_pos.reference))
+        else:
+            return Position(ivy_pos.filename or "<stdin>", ivy_pos.line, None)
 
 
 def symbols(im: imod.Module) -> Iterable[log.Const]:
@@ -26,6 +42,12 @@ def symbols(im: imod.Module) -> Iterable[log.Const]:
             raise Exception(f"symbols: TODO: {name} = {sym}")
 
 
+def sort_has_domain(sort) -> bool:
+    if not hasattr(sort, "dom"):
+        return False
+    return len(sort.dom) > 0
+
+
 def members(im: imod.Module) -> Iterable[log.Const]:
     defns = set([d.formula.defines().name for d in im.definitions + im.native_definitions])
     for sym in symbols(im):
@@ -44,5 +66,5 @@ def state_symbols(im: imod.Module) -> Iterable[log.Const]:
 
 def individuals(im: imod.Module) -> Iterable[log.Const]:
     for sym in symbols(im):
-        if not extensionality.sort_has_domain(sym.sort):
+        if not sort_has_domain(sym.sort):
             yield sym

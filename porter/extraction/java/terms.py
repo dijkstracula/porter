@@ -4,6 +4,7 @@ from .sorts import *
 from .utils import *
 
 from porter.ast import Binding, terms
+from porter.ast.sorts import Sort
 
 from porter.ast.terms.visitor import Visitor as TermVisitor
 
@@ -32,15 +33,14 @@ class Extractor(TermVisitor[Doc]):
 
         return Text("public") + space + ret + space + self._constant(name) + params
 
-    def action_body(self, rets: list[Binding[sorts.Sort]], body: Doc):
+    def action_body(self, rets: list[Binding[Sort]], body: Doc):
         if len(rets) == 0:
             return body  # This is a void function.
         if len(rets) > 1:
             raise Exception("TODO: multiple returns")
         ret = rets[0]
-        retname = self._constant(ret.name)
-        retdecl = UnboxedSort().visit_sort(ret.decl) + space + retname + semi
-        retstmt = Text("return ") + retname + semi
+        retdecl = self.vardecl(ret) + semi
+        retstmt = Text("return ") + self._constant(ret.name) + semi
 
         return retdecl + Line() + body + Line() + retstmt
 
@@ -59,9 +59,8 @@ class Extractor(TermVisitor[Doc]):
         return Text("protected") + space + ret + space + self._constant(name) + params
 
     def export_action(self, action: Binding[terms.ActionDefinition]) -> Doc:
-        arity = len(action.decl.formal_params) + len(action.decl.formal_returns)
         args = [self._constant(action.name)]
-        return Text(f"exportAction{arity}") + Text("(") + utils.join(args, ",") + Text(");")
+        return Text(f"exportAction(") + Text('"' + action.name + '"') + Text(", ") + utils.join(args, ",") + Text(");")
 
     def add_conjecture(self, conj: Binding[terms.Expr]) -> Doc:
         name = '"' + conj.name + '"'
@@ -80,6 +79,13 @@ class Extractor(TermVisitor[Doc]):
                conjdocs + [utils.soft_line] + \
                inits
         return Text(f"public {isolate_name}()") + space + block(utils.join(body, "\n"))
+
+    def vardecl(self, binding: Binding[Sort]):
+        sort = UnboxedSort().visit_sort(binding.decl)
+        var = self._constant(binding.name)
+        init = DefaultValue().visit_sort(binding.decl)
+
+        return sort + space + var + Text(" = ") + init
 
     # Expressions
 
@@ -162,10 +168,7 @@ class Extractor(TermVisitor[Doc]):
     def _finish_let(self, act: terms.Let, scope: Doc):
         var_docs = []
         for binding in act.vardecls:
-            var = self._constant(binding.name)
-            sort = UnboxedSort().visit_sort(binding.decl)
-
-            var_docs.append(sort + space + var + semi)
+            var_docs.append(self.vardecl(binding) + semi)
         return utils.join(var_docs, Line()) + Line() + scope
 
     def _finish_logical_assign(self, act: terms.LogicalAssign, assn: Doc):

@@ -2,8 +2,10 @@ from ivy import ivy_ast as iast
 from ivy import ivy_module as imod
 from ivy import logic as ilog
 
+from porter.ivy import Position
 from dataclasses import dataclass
 from typing import Optional
+
 
 # Sorts
 
@@ -25,7 +27,7 @@ class Bool(Sort):
 
 @dataclass(frozen=True)
 class Native(Sort):
-    lang: str
+    posn: Position
     fmt: str  # TODO: in Ivy this is a NativeCode
     args: list  # TODO: of what?
 
@@ -129,5 +131,5 @@ def from_ivy(sort) -> Sort:
         assert isinstance(native_code, iast.NativeCode)
         native_blob = native_code.code.strip()
         args = [str(arg) for arg in sort.args[1:]]
-        return Native("c++", native_blob, args)
+        return Native(Position.from_ivy(sort.lineno), native_blob, args)
     raise Exception(f"TODO {type(sort)}")

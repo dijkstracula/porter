@@ -11,6 +11,35 @@ from porter.pp.utils import space
 from typing import Optional
 
 
+class DefaultValue(SortVisitor[Doc]):
+    def bool(self):
+        return Text("false")
+
+    def bv(self, name: str, width: int):
+        if width > 64:
+            raise Exception("BV too wide")
+        if width > 8:
+            return Text("0L")
+        return Text("0")
+
+    def enum(self, name: str, discriminants: list[str]):
+        return Text(canonicalize_identifier(discriminants[0]))
+
+    def native(self, lang: str, fmt: str, args: list[str]):
+        return interpolate_native(fmt, [Text(arg) for arg in args])
+
+    def numeric(self, name: str, lo: Optional[int], hi: Optional[int]):
+        if lo:
+            return Text(str(lo))
+        return Text("0")
+
+    def _finish_record(self, rec: sorts.Record, fields: dict[str, Doc]):
+        return Text("new " + canonicalize_identifier(rec.name) + "()")
+
+    def uninterpreted(self, name: str):
+        return Text("0")
+
+
 class BoxedSort(SortVisitor[Doc]):
     def bool(self):
         return Text("Boolean")
@@ -43,7 +72,7 @@ class BoxedSort(SortVisitor[Doc]):
 
 class UnboxedSort(SortVisitor[Doc]):
     def bool(self):
-        return Text("bool")
+        return Text("boolean")
 
     def bv(self, name: str, width: int):
         if width > 64:
@@ -103,8 +132,10 @@ class SortDeclaration(SortVisitor[Doc]):
 
     def _finish_record(self, rec: sorts.Record, fields: dict[str, Doc]):
         unboxed = UnboxedSort()
-        fields = [unboxed.visit_sort(s) + space + Text(name) + Text(";") for name, s in rec.fields.items()]
-        return Text("public class " + canonicalize_identifier(rec.name)) + space + block(utils.join(fields, "\n"))
+        field_docs = [Text("public") + space +
+                  unboxed.visit_sort(s) + space +
+                  Text(canonicalize_identifier(name)) + Text(";") for name, s in rec.fields.items()]
+        return Text("public class " + canonicalize_identifier(rec.name)) + space + block(utils.join(field_docs, "\n"))
 
     def uninterpreted(self, name: str):
         return Nil()
