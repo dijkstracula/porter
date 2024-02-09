@@ -26,7 +26,7 @@ class DefaultValue(SortVisitor[Doc]):
         return Text(canonicalize_identifier(discriminants[0]))
 
     def native(self, lang: str, fmt: str, args: list[str]):
-        return interpolate_native(fmt, [Text(arg) for arg in args])
+        return Text("new ") + interpolate_native(fmt, [Text(arg) for arg in args]) + Text("()")
 
     def numeric(self, name: str, lo: Optional[int], hi: Optional[int]):
         if lo:

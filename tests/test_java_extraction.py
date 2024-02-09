@@ -153,3 +153,4 @@ class JavaExtractionTests(unittest.TestCase):
             "x = 42;",
             "y = true;",
         ]))
+

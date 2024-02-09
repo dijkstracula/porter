@@ -4,7 +4,7 @@ from .sorts import *
 from .utils import *
 
 from porter.ast import Binding, terms
-from porter.ast.sorts import Sort
+from porter.ast.sorts import Sort, Record
 
 from porter.ast.terms.visitor import Visitor as TermVisitor
 
@@ -33,16 +33,21 @@ class Extractor(TermVisitor[Doc]):
 
         return Text("public") + space + ret + space + self._constant(name) + params
 
-    def action_body(self, rets: list[Binding[Sort]], body: Doc):
+    def action_body(self, defn: terms.ActionDefinition):
+        body = self.visit_action(defn.body)
+        rets = defn.formal_returns
         if len(rets) == 0:
             return body  # This is a void function.
         if len(rets) > 1:
             raise Exception("TODO: multiple returns")
         ret = rets[0]
-        retdecl = self.vardecl(ret) + semi
+        if ret.name not in [b.name for b in defn.formal_params]:
+            retdecl = self.vardecl(ret) + semi + Line()
+        else:
+            retdecl = Nil()
         retstmt = Text("return ") + self._constant(ret.name) + semi
 
-        return retdecl + Line() + body + Line() + retstmt
+        return retdecl + body + Line() + retstmt
 
     # XXX: This is pretty similar to action_sig.
     def function_sig(self, name: str, decl: terms.FunctionDefinition) -> Doc:
@@ -96,6 +101,21 @@ class Extractor(TermVisitor[Doc]):
         return Text(canonicalize_identifier(rep))
 
     def _finish_apply(self, node: terms.Apply, relsym_ret: Doc, args_ret: list[Doc]):
+        # Unprincipled hack: field accesses on records are extracted as unary relations, so f.x
+        # is by default emitted as x(f).  The better way to do this is to have a preprocessing
+        # pass that inverts this into a FieldAccess AST node or something, but instead we can
+        # do it at extraction time if the argument to the relation is a Record, and the relsym
+        # of the application matches `<record_sort_name>.<valid record field for that sort>`.
+        if len(node.args) == 1:
+            match node.args[0].sort():
+                case Record(sort_name, fields):
+                    t = node.relsym.rsplit(".", 1)
+                    if len(t) == 2:
+                        maybe_sort_name, field_name = t
+                        if maybe_sort_name == sort_name and field_name in fields:
+                            varname = self.visit_expr(node.args[0])
+                            return varname + Text(".") + Text(field_name)
+
         return relsym_ret + utils.enclosed("(", utils.join(args_ret, ", "), ")")
 
     def _finish_binop(self, node: terms.BinOp, lhs_ret: Doc, rhs_ret: Doc):
@@ -200,7 +220,7 @@ class Extractor(TermVisitor[Doc]):
                            defn: terms.ActionDefinition,
                            body: Doc) -> Doc:
         sig = self.action_sig(name, defn)
-        return sig + space + block(self.action_body(defn.formal_returns, body))
+        return sig + space + block(self.action_body(defn))
 
     def _finish_function_def(self,
                              name: str,

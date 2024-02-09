@@ -53,11 +53,24 @@ def test_ivy_ts_subfiles(fn: str):
     _layout = formatted.layout()
 
 
-def test_linchain():
-    fn = os.path.join(progdir, '003_linchain.ivy')
+def test_class_field_extraction():
+    # Ping-Pong accesses fields in a class like so:
+    #         if msg.typ = ping_kind {
+    #             msg.typ := pong_kind;
+    #             msg.dst := msg.src;
+    #             msg.src := self;
+    #             sock.send(proc(msg.dst).sock.id, msg);
+    #         } else {
+    #
+    # The AST we get back from Ivy representes the LHS of these accesses
+    # as unary relations, so we have to do some irritating mangling at extraction
+    # time.
+    fn = os.path.join(progdir, '006_pingpong.ivy')
     prog = shims.handle_isolate(Path(fn))
     formatted = Naive(80).format(java.extract(os.path.basename(fn), prog))
-    _layout = formatted.layout()
+    layout = formatted.layout()
+
+    assert("msg.dst = msg.src" in layout)
 
 
 def test_accord():

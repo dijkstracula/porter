@@ -19,7 +19,7 @@ class msg_t = {
     field ping_val: nat
 }
 
-instance net : tcp.net(msg_t)
+instance net : tcp_test.net(msg_t)
 
 process proc(self: pid) = {
     instance sock : net.socket

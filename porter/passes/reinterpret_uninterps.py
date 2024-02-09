@@ -52,6 +52,13 @@ class ReinterpretUninterpreted(TermMutVisitor):
     def __init__(self, mapping: dict[str, Sort]):
         self.sort_visitor = ReinterpretUninterpsSortVisitor(mapping)
 
+    def _finish_apply(self, node: terms.Apply, relsym_ret: None, args_ret: list[None]):
+        if len(node.args) > 0:
+            possibly_self = node.args[0]
+            s = possibly_self.sort()
+            if s:
+                possibly_self._sort = self.sort_visitor.visit_sort(s)
+
     def _finish_let(self, act: terms.Let, scope: None):
         act.vardecls = [Binding(b.name, self.sort_visitor.visit_sort(b.decl)) for b in act.vardecls]
 

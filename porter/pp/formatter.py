@@ -8,10 +8,12 @@ def interpolate_native(fmt: str, args: list[Doc]):
     ret = Nil()
 
     for line in fmt.split("\n"):
+        line = line.strip()
+        if line == "":
+            continue
+
         if not isinstance(ret, Nil):
             ret = ret + Line()
-
-        line = line.strip()
 
         # TODO: bail out if we have not translated the Native out of C++.
         curr_begin = 0
@@ -24,7 +26,9 @@ def interpolate_native(fmt: str, args: list[Doc]):
             curr_begin = curr_begin + m.end()
             m = re.search(pat, line[curr_begin:])
 
-        ret = ret + Text(line[curr_begin:].strip())
+        final = line[curr_begin:]
+        if final != "":
+            ret = ret + Text(final)
     return ret
 
 
