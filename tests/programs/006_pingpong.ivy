@@ -1,0 +1,53 @@
+#lang ivy1.8
+
+include collections
+include network
+include numbers
+
+type pid = {0..1}
+
+type msg_type = {
+    ping_kind,
+    pong_kind
+}
+
+class msg_t = {
+    field typ: msg_type
+
+    field src: pid
+    field dst: pid
+    field ping_val: nat
+}
+
+instance net : tcp.net(msg_t)
+
+process proc(self: pid) = {
+    instance sock : net.socket
+
+    after init {
+        #sock := net.dial(self)
+    }
+
+    export action ping = {
+        var msg: msg_t;
+        msg.src := self;
+        msg.dst := 1 - self;
+        msg.ping_val := 42;
+
+        sock.send(proc(1-self).sock.id, msg);
+    }
+
+    import action done(val: nat)
+    
+    implement sock.recv(src:tcp.endpoint, msg: msg_t) {
+        if msg.typ = ping_kind {
+            msg.typ := pong_kind;
+            msg.dst := msg.src;
+            msg.src := self;
+            sock.send(proc(msg.dst).sock.id, msg);
+        } else {
+            done(msg.ping_val)
+        }
+    }
+}
+
