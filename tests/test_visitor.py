@@ -14,10 +14,7 @@ class ExprCounter(Visitor[None]):
 
     # Expressions
 
-    def _constant(self, _rep: str):
-        self.n_expr_nodes += 1
-
-    def _var(self, _rep: str):
+    def _identifier(self, _s: str):
         self.n_expr_nodes += 1
 
     def _finish_apply(self, node: terms.Apply, relsym_ret: None, args_ret: list[None]):

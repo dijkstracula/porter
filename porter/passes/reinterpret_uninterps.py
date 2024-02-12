@@ -23,7 +23,7 @@ class ReinterpretUninterpsSortVisitor(SortVisitor[Sort]):
         return sorts.BitVec(width)
 
     def enum(self, name: str, discriminants: tuple[str, ...]) -> Sort:
-        return sorts.Enumeration(name, discriminants)
+        return sorts.Enum(name, discriminants)
 
     def _begin_function(self, node: sorts.Function):
         pass

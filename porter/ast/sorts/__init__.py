@@ -56,7 +56,7 @@ class BitVec(Sort):
 
 
 @dataclass(frozen=True)
-class Enumeration(Sort):
+class Enum(Sort):
     sort_name: str
     discriminants: tuple[str, ...]
 
@@ -119,7 +119,7 @@ def from_ivy(sort) -> Sort:
             return Uninterpreted(name)
         if isinstance(sort, ilog.EnumeratedSort):
             discriminants = tuple([str(x) for x in sort.extension])
-            return Enumeration(name, discriminants)
+            return Enum(name, discriminants)
     if hasattr(sort, "sort"):
         return from_ivy(sort.sort)
     if isinstance(sort, ilog.FunctionSort):

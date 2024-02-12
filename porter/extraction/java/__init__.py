@@ -16,7 +16,7 @@ def extract(isolate_name: str, prog: astterms.Program) -> Doc:
 
     var_docs = []
     for binding in extractor.individuals:
-        var = extractor._constant(binding.name)
+        var = extractor._identifier(binding.name)
         sort = unboxed.visit_sort(binding.decl)
         var_docs.append(sort + space + var + semi)
 

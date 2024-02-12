@@ -1,6 +1,6 @@
 from typing import Generic
 
-from porter.ast.sorts import Bool, BitVec, Enumeration, Function, Number, Uninterpreted
+from porter.ast.sorts import Bool, BitVec, Enum, Function, Number, Uninterpreted
 from porter.ast.sorts.visitor import Visitor as SortVisitor
 from porter.ast.terms import *
 
@@ -96,7 +96,7 @@ class Visitor(Generic[T]):
         match node:
             case Apply(_, relsym, args):
                 self._begin_apply(node)
-                relsym = self._constant(relsym)
+                relsym = self._identifier(relsym)
                 args = [self.visit_expr(arg) for arg in args]
                 return self._finish_apply(node, relsym, args)
             case BinOp(_, lhs, _op, rhs):
@@ -104,10 +104,10 @@ class Visitor(Generic[T]):
                 lhs_ret = self.visit_expr(lhs)
                 rhs_ret = self.visit_expr(rhs)
                 return self._finish_binop(node, lhs_ret, rhs_ret)
-            case Constant(_, rep):
-                return self._constant(rep)
-            case Var(_, rep):
-                return self._var(rep)
+            case Constant(_, _):
+                return self._constant(node)
+            case Var(_, _):
+                return self._var(node)
             case Exists(_, vars, expr):
                 self._begin_exists(node)
                 expr = self.visit_expr(expr)
@@ -132,11 +132,14 @@ class Visitor(Generic[T]):
                 return self._finish_unop(node, expr)
         raise Exception(f"TODO: {node}")
 
-    def _constant(self, rep: str) -> T:
-        raise UnimplementedASTNodeHandler(Constant)
+    def _identifier(self, s: str) -> T:
+        raise UnimplementedASTNodeHandler(str)
 
-    def _var(self, rep: str) -> T:
-        raise UnimplementedASTNodeHandler(Var)
+    def _constant(self, c: Constant) -> T:
+        return self._identifier(c.rep)
+
+    def _var(self, v: Var) -> T:
+        return self._identifier(v.rep)
 
     def _begin_apply(self, node: Apply):
         pass
@@ -339,10 +342,7 @@ class MutVisitor(Visitor[None]):
 
     # Expressions
 
-    def _constant(self, rep: str):
-        pass
-
-    def _var(self, rep: str):
+    def _identifier(self, c: Constant):
         pass
 
     def _finish_apply(self, node: Apply, relsym_ret: None, args_ret: list[None]):

@@ -4,7 +4,7 @@ from .sorts import *
 from .utils import *
 
 from porter.ast import Binding, terms
-from porter.ast.sorts import Sort, Record
+from porter.ast.sorts import Enum, Sort, Record
 
 from porter.ast.terms.visitor import Visitor as TermVisitor
 
@@ -28,10 +28,10 @@ class Extractor(TermVisitor[Doc]):
         else:
             ret = unboxed.visit_sort(decl.formal_returns[0].decl)
 
-        param_docs = [unboxed.visit_sort(b.decl) + space + self._constant(b.name) for b in decl.formal_params]
+        param_docs = [unboxed.visit_sort(b.decl) + space + self._identifier(b.name) for b in decl.formal_params]
         params = utils.enclosed("(", utils.join(param_docs, ", "), ")")
 
-        return Text("public") + space + ret + space + self._constant(name) + params
+        return Text("public") + space + ret + space + self._identifier(name) + params
 
     def action_body(self, defn: terms.ActionDefinition):
         body = self.visit_action(defn.body)
@@ -45,7 +45,7 @@ class Extractor(TermVisitor[Doc]):
             retdecl = self.vardecl(ret) + semi + Line()
         else:
             retdecl = Nil()
-        retstmt = Text("return ") + self._constant(ret.name) + semi
+        retstmt = Text("return ") + self._identifier(ret.name) + semi
 
         return retdecl + body + Line() + retstmt
 
@@ -53,7 +53,7 @@ class Extractor(TermVisitor[Doc]):
     def function_sig(self, name: str, decl: terms.FunctionDefinition) -> Doc:
         unboxed = UnboxedSort()
 
-        param_docs = [unboxed.visit_sort(b.decl) + space + self._constant(b.name) for b in decl.formal_params]
+        param_docs = [unboxed.visit_sort(b.decl) + space + self._identifier(b.name) for b in decl.formal_params]
         params = utils.enclosed("(", utils.join(param_docs, ", "), ")")
 
         ret_sort = decl.body.sort()
@@ -61,10 +61,10 @@ class Extractor(TermVisitor[Doc]):
         ret = unboxed.visit_sort(ret_sort)
 
         # This could be public but it's nice to just see visually what's an Action vs a Function.
-        return Text("protected") + space + ret + space + self._constant(name) + params
+        return Text("protected") + space + ret + space + self._identifier(name) + params
 
     def export_action(self, action: Binding[terms.ActionDefinition]) -> Doc:
-        args = [self._constant(action.name)]
+        args = [self._identifier(action.name)]
         return Text(f"exportAction(") + Text('"' + action.name + '"') + Text(", ") + utils.join(args, ",") + Text(");")
 
     def add_conjecture(self, conj: Binding[terms.Expr]) -> Doc:
@@ -87,18 +87,33 @@ class Extractor(TermVisitor[Doc]):
 
     def vardecl(self, binding: Binding[Sort]):
         sort = UnboxedSort().visit_sort(binding.decl)
-        var = self._constant(binding.name)
+        var = self._identifier(binding.name)
         init = DefaultValue().visit_sort(binding.decl)
 
         return sort + space + var + Text(" = ") + init
 
     # Expressions
 
-    def _constant(self, rep: str) -> Doc:
-        return Text(canonicalize_identifier(rep))
+    def _identifier(self, s: str) -> Doc:
+        return Text(canonicalize_identifier(s))
 
-    def _var(self, rep: str) -> Doc:
-        return Text(canonicalize_identifier(rep))
+    def _constant(self, c: terms.Constant) -> Doc:
+        ident = self._identifier(c.rep)
+        sort = c.sort()
+        match sort:
+            case Enum(sort_name, _discriminants):
+                return Text(sort_name) + Text(".") + ident
+            case _:
+                return ident
+
+    def _var(self, c: terms.Var) -> Doc:
+        ident = self._identifier(c.rep)
+        sort = c.sort()
+        match sort:
+            case Enum(sort_name, _discriminants):
+                return Text(sort_name) + Text(".") + ident
+            case _:
+                return ident
 
     def _finish_apply(self, node: terms.Apply, relsym_ret: Doc, args_ret: list[Doc]):
         # Unprincipled hack: field accesses on records are extracted as unary relations, so f.x
@@ -197,7 +212,7 @@ class Extractor(TermVisitor[Doc]):
         for v in act.vars:
             vs = v.sort()
             assert (vs)
-            ret = ret + boxed.visit_sort(vs) + Text(".forEach(") + self._constant(v.rep) + Text(" => { ")
+            ret = ret + boxed.visit_sort(vs) + Text(".forEach(") + self._var(v) + Text(" => { ")
         ret = ret + assn
         for _ in act.vars:
             ret = ret + Text(" })")

@@ -1,6 +1,6 @@
 from typing import Generic, Optional, TypeVar
 
-from porter.ast.sorts import Bool, BitVec, Enumeration, Function, Native, Number, Record, Uninterpreted, Sort
+from porter.ast.sorts import Bool, BitVec, Enum, Function, Native, Number, Record, Uninterpreted, Sort
 from porter.ivy import Position
 
 T = TypeVar("T")
@@ -24,7 +24,7 @@ class Visitor(Generic[T]):
                 return self.bool()
             case BitVec(width):
                 return self.bv(width)
-            case Enumeration(name, discs):
+            case Enum(name, discs):
                 return self.enum(name, discs)
             case Function(domain, range):
                 self._begin_function(sort)
@@ -50,7 +50,7 @@ class Visitor(Generic[T]):
         raise UnimplementedASTNodeHandler(BitVec)
 
     def enum(self, name: str, discriminants: tuple[str, ...]):
-        raise UnimplementedASTNodeHandler(Enumeration)
+        raise UnimplementedASTNodeHandler(Enum)
 
     def _begin_function(self, node: Function):
         pass
