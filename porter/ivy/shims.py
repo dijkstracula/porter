@@ -12,6 +12,7 @@ from ivy import ivy_module as imod
 from ivy import ivy_utils as iu
 
 from porter.ast import Binding, sorts, terms
+from porter.passes import native_rewriter
 from porter.passes.reinterpret_uninterps import ReinterpretUninterpreted
 
 from . import members
@@ -405,5 +406,7 @@ def program_from_ivy(im: imod.Module) -> terms.Program:
     reinterp = ReinterpretUninterpreted(to_remap)
     reinterp.visit_program(prog)
     reinterp.visit_program_sorts(prog, reinterp.sort_visitor)
+
+    native_rewriter.visit(prog)
 
     return prog

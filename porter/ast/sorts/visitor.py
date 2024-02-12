@@ -101,3 +101,4 @@ class MutVisitor(Visitor[None]):
 
     def uninterpreted(self, name: str) -> None:
         pass
+

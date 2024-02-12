@@ -1,5 +1,5 @@
 from porter.ivy import shims
-from porter.passes import extensionality, freevars
+from porter.passes import extensionality, freevars, native_rewriter
 from porter.ast import terms
 import os
 
@@ -46,3 +46,8 @@ def test_freevar_pass():
     assert(fvs.vars == set([]))
 
     pass
+
+
+def test_native_rewriter():
+    prog = compile_and_parse(os.path.join(progdir, "006_pingpong.ivy"))
+    native_rewriter.visit(prog)

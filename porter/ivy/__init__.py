@@ -17,18 +17,26 @@ class Position:
 
     @staticmethod
     def from_ivy(ivy_pos: iu.LocationTuple) -> "Position":
+        if not ivy_pos.filename:
+            fn = Path("unknown")
+        elif isinstance(ivy_pos.filename, Path):
+            fn = ivy_pos.filename
+        elif isinstance(ivy_pos.filename, str):
+            fn = Path(ivy_pos.filename)
+        else:
+            raise Exception(f"What kind of data is ivy_pos.filename? It is a f{type(ivy_pos.filename)}")
+
         if len(ivy_pos) > 2:
             assert (isinstance(ivy_pos.reference, iu.LocationTuple))
-            if isinstance(ivy_pos.filename, Path):
-                fn = ivy_pos.filename
-            elif isinstance(ivy_pos.filename, str):
-                fn = Path(ivy_pos.filename)
-            else:
-                raise Exception(f"What kind of data is ivy_pos.filename? It is a f{type(ivy_pos.reference)}")
-
-            return Position(ivy_pos.filename or "<stdin>", ivy_pos.line, Position.from_ivy(ivy_pos.reference))
+            return Position(fn, ivy_pos.line, Position.from_ivy(ivy_pos.reference))
         else:
-            return Position(ivy_pos.filename or "<stdin>", ivy_pos.line, None)
+            return Position(fn, ivy_pos.line, None)
+
+    def origin(self) -> "Position":
+        if not self.reference:
+            return self
+        return self.reference.origin()
+
 
 
 def symbols(im: imod.Module) -> Iterable[log.Const]:
