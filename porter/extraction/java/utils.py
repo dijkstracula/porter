@@ -10,11 +10,16 @@ def block(contents: Doc) -> Doc:
     return Text("{") + Line() + Nest(4, contents) + Line() + Text("}")
 
 
+def quoted(contents: Doc | str) -> Doc:
+    if isinstance(contents, str):
+        contents = Text(contents)
+    return Text('"') + contents + Text('"')
+
+
 def canonicalize_identifier(s: str) -> str:
     return s \
         .replace(".", "__") \
         .replace("fml:", "") \
         .replace(":", "__") \
         .replace("[", "_of_") \
-        .replace("]", "_") \
-
+        .replace("]", "_")

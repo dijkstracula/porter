@@ -1,5 +1,3 @@
-import re
-
 from .sorts import *
 from .utils import *
 
@@ -49,6 +47,14 @@ class Extractor(TermVisitor[Doc]):
 
         return retdecl + body + Line() + retstmt
 
+    def imported_action(self, name: str, defn: terms.ActionDefinition):
+        assert defn.kind == terms.ActionKind.IMPORTED
+        ret = Text("debug(") + quoted(name)
+        for arg in defn.formal_params:
+            ret = ret + Text(", ") + self._identifier(arg.name)
+        ret = ret + Text(")")
+        return ret
+
     # XXX: This is pretty similar to action_sig.
     def function_sig(self, name: str, decl: terms.FunctionDefinition) -> Doc:
         unboxed = UnboxedSort()
@@ -65,12 +71,24 @@ class Extractor(TermVisitor[Doc]):
 
     def export_action(self, action: Binding[terms.ActionDefinition]) -> Doc:
         args = [self._identifier(action.name)]
-        return Text(f"exportAction(") + Text('"' + action.name + '"') + Text(", ") + utils.join(args, ",") + Text(");")
+        lineno = action.decl.pos()
+        assert lineno
+        return Text("exported(") + \
+            quoted(action.name) + Text(", ") + \
+            quoted(lineno.filename.name) + Text(", ") + \
+            Text(str(lineno.line)) + Text(", ") + \
+            utils.join(args, ", ") + \
+            Text(");")
 
     def add_conjecture(self, conj: Binding[terms.Expr]) -> Doc:
-        name = '"' + conj.name + '"'
         fmla = self.visit_expr(conj.decl)
-        return Text(f"addConjecture({name}, () => ") + fmla + Text(");")
+        lineno = conj.decl.pos()
+        return Text("conjectured(") + \
+            quoted(conj.name) + Text(", ") + \
+            quoted(lineno.filename.name) + Text(", ") + \
+            Text(str(lineno.line)) + Text(",") + utils.soft_line + \
+            Text("() => ") + fmla + \
+            Text(");")
 
     def cstr(self,
              isolate_name: str,
@@ -173,7 +191,12 @@ class Extractor(TermVisitor[Doc]):
     # Actions
 
     def _finish_assert(self, act: terms.Assert, pred: Doc):
-        return Text("this.assert(") + pred + Text(");")
+        lineno = act.pos()
+        assert lineno
+        return Text("assertThat(") + \
+            quoted(lineno.filename.name) + Text(", ") + \
+            Text(str(lineno.line)) + Text(", ") + \
+            pred + Text(");")
 
     def _finish_assign(self, act: terms.Assign, lhs: Doc, rhs: Doc):
         return lhs + utils.padded("=") + rhs + semi
@@ -185,7 +208,7 @@ class Extractor(TermVisitor[Doc]):
         return app + semi  # XXX: yes??
 
     def _finish_debug(self, act: terms.Debug, args: list[Doc]):
-        return Text("this.debug(") + Text(act.msg) + Text(");")  # TODO: args
+        return Text("debug(") + Text(act.msg) + Text(");")
 
     def _finish_ensures(self, act: terms.Ensures, pred: Doc):
         return Text("this.ensures(") + pred + Text(")")
@@ -235,7 +258,11 @@ class Extractor(TermVisitor[Doc]):
                            defn: terms.ActionDefinition,
                            body: Doc) -> Doc:
         sig = self.action_sig(name, defn)
-        return sig + space + block(self.action_body(defn))
+        match defn.kind:
+            case terms.ActionKind.IMPORTED:
+                return sig + space + block(self.imported_action(name, defn))
+            case _:
+                return sig + space + block(self.action_body(defn))
 
     def _finish_function_def(self,
                              name: str,

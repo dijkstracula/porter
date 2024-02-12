@@ -108,11 +108,11 @@ class Visitor(Generic[T]):
                 return self._constant(node)
             case Var(_, _):
                 return self._var(node)
-            case Exists(_, vars, expr):
+            case Exists(_, _, expr):
                 self._begin_exists(node)
                 expr = self.visit_expr(expr)
                 return self._finish_exists(node, expr)
-            case Forall(_, vars, expr):
+            case Forall(_, _, expr):
                 self._begin_forall(node)
                 expr = self.visit_expr(expr)
                 return self._finish_forall(node, expr)

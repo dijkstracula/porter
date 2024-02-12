@@ -235,7 +235,7 @@ def while_from_ivy(im: imod.Module, iaction: iact.WhileAction) -> terms.While:
 
 def assert_from_ivy(im: imod.Module, iaction: iact.AssertAction) -> terms.Assert:
     pred = expr_from_ivy(im, iaction.args[0])
-    return terms.Assert(im, pred)
+    return terms.Assert(iaction, pred)
 
 
 def assign_from_ivy(im: imod.Module, iaction: iact.AssignAction) -> terms.Action:

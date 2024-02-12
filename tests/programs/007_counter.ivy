@@ -9,9 +9,9 @@ process mutator = {
     export action inc
     export action dec
 
-    import action show
-
     var count : t
+
+    import action show(c: t)
 
     after init {
         count := 1;
@@ -19,10 +19,11 @@ process mutator = {
 
     implement inc {
         count := count + 1;
-        call show
+        show(count)
     }
     implement dec {
         count := count - 1;
+        show(count)
     }
 
     specification {
