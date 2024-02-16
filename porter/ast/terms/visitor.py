@@ -96,14 +96,14 @@ class Visitor(Generic[T]):
         match node:
             case Apply(_, relsym, args):
                 bret = self._begin_apply(node)
-                if bret: return bret
+                if bret is not None: return bret
 
                 relsym = self._identifier(relsym)
                 args = [self.visit_expr(arg) for arg in args]
                 return self._finish_apply(node, relsym, args)
             case BinOp(_, lhs, _op, rhs):
                 bret = self._begin_binop(node)
-                if bret: return bret
+                if bret is not None: return bret
 
                 lhs_ret = self.visit_expr(lhs)
                 rhs_ret = self.visit_expr(rhs)
@@ -114,19 +114,19 @@ class Visitor(Generic[T]):
                 return self._var(node)
             case Exists(_, _, expr):
                 bret = self._begin_exists(node)
-                if bret: return bret
+                if bret is not None: return bret
 
                 expr = self.visit_expr(expr)
                 return self._finish_exists(node, expr)
             case Forall(_, _, expr):
                 bret = self._begin_forall(node)
-                if bret: return bret
+                if bret is not None: return bret
 
                 expr = self.visit_expr(expr)
                 return self._finish_forall(node, expr)
             case Ite(_, test, then, els):
                 bret = self._begin_ite(node)
-                if bret: return bret
+                if bret is not None: return bret
 
                 test = self.visit_expr(test)
                 then = self.visit_expr(then)
@@ -134,13 +134,13 @@ class Visitor(Generic[T]):
                 return self._finish_ite(node, test, then, els)
             case Some(_, vars, fmla, _strat):
                 bret = self._begin_some(node)
-                if bret: return bret
+                if bret is not None: return bret
 
                 fmla = self.visit_expr(fmla)
                 return self._finish_some(node, fmla)
             case UnOp(_, _op, expr):
                 bret = self._begin_unop(node)
-                if bret: return bret
+                if bret is not None: return bret
 
                 expr = self.visit_expr(expr)
                 return self._finish_unop(node, expr)
@@ -203,50 +203,50 @@ class Visitor(Generic[T]):
         match node:
             case Assert(_, pred):
                 bret = self._begin_assert(node)
-                if bret: return bret
+                if bret is not None: return bret
 
                 pred = self.visit_expr(pred)
                 return self._finish_assert(node, pred)
             case Assign(_, lhs, rhs):
                 bret = self._begin_assign(node)
-                if bret: return bret
+                if bret is not None: return bret
 
                 lhs = self.visit_expr(lhs)
                 rhs = self.visit_expr(rhs)
                 return self._finish_assign(node, lhs, rhs)
             case Assume(_, pred):
                 bret = self._begin_assume(node)
-                if bret: return bret
+                if bret is not None: return bret
 
                 pred = self.visit_expr(pred)
                 return self._finish_assume(node, pred)
             case Call(_, app):
                 bret = self._begin_call(node)
-                if bret: return bret
+                if bret is not None: return bret
 
                 app = self.visit_expr(app)
                 return self._finish_call(node, app)
             case Debug(_, _msg, args):
                 bret = self._begin_debug(node)
-                if bret: return bret
+                if bret is not None: return bret
 
                 args = [Binding(b.name, self.visit_expr(b.decl)) for b in args]
                 return self._finish_debug(node, args)
             case Ensures(_, pred):
                 bret = self._begin_ensures(node)
-                if bret: return bret
+                if bret is not None: return bret
 
                 pred = self.visit_expr(pred)
                 return self._finish_ensures(node, pred)
             case Havok(_, modifies):
                 bret = self._begin_havok(node)
-                if bret: return bret
+                if bret is not None: return bret
 
                 modifies = [self.visit_expr(e) for e in modifies]
                 return self._finish_havok(node, modifies)
             case If(_, test, then, els):
                 bret = self._begin_if(node)
-                if bret: return bret
+                if bret is not None: return bret
 
                 test = self.visit_expr(test)
                 then = self.visit_action(then)
@@ -255,37 +255,37 @@ class Visitor(Generic[T]):
                 return self._finish_if(node, test, then, els)
             case Let(_, _vardecls, scope):
                 bret = self._begin_let(node)
-                if bret: return bret
+                if bret is not None: return bret
 
                 scope = self.visit_action(scope)
                 return self._finish_let(node, scope)
             case LogicalAssign(_, _vardecls, assign):
                 bret = self._begin_logical_assign(node)
-                if bret: return bret
+                if bret is not None: return bret
 
                 assign = self.visit_action(assign)
                 return self._finish_logical_assign(node, assign)
             case Native(_, _lang, _fmt, args):
                 bret = self._begin_native(node)
-                if bret: return bret
+                if bret is not None: return bret
 
                 args = [self.visit_expr(arg) for arg in args]
                 return self._finish_native(node, args)
             case Requires(_, pred):
                 bret = self._begin_requires(node)
-                if bret: return bret
+                if bret is not None: return bret
 
                 pred = self.visit_expr(pred)
                 return self._finish_requires(node, pred)
             case Sequence(_, stmts):
                 bret = self._begin_sequence(node)
-                if bret: return bret
+                if bret is not None: return bret
 
                 stmts = [self.visit_action(stmt) for stmt in stmts]
                 return self._finish_sequence(node, stmts)
             case While(_, test, decreases, do):
                 bret = self._begin_while(node)
-                if bret: return bret
+                if bret is not None: return bret
 
                 test = self.visit_expr(test)
                 if decreases is not None:
@@ -330,50 +330,50 @@ class Visitor(Generic[T]):
     def _finish_ensures(self, act: Ensures, pred: T) -> T:
         raise UnimplementedASTNodeHandler(Ensures)
 
-    def _begin_havok(self, act: Havok) -> T:
-        pass
+    def _begin_havok(self, act: Havok) -> Optional[T]:
+        return None
 
     def _finish_havok(self, act: Havok, modifies: list[T]):
         raise UnimplementedASTNodeHandler(Havok)
 
-    def _begin_if(self, act: If) -> T:
-        pass
+    def _begin_if(self, act: If) -> Optional[T]:
+        return None
 
     def _finish_if(self, act: If, test: T, then: T, els: Optional[T]):
         raise UnimplementedASTNodeHandler(If)
 
     def _begin_let(self, act: Let) -> Optional[T]:
-        pass
+        return None
 
     def _finish_let(self, act: Let, scope: T) -> T:
         raise UnimplementedASTNodeHandler(Let)
 
     def _begin_logical_assign(self, act: LogicalAssign) -> Optional[T]:
-        pass
+        return None
 
     def _finish_logical_assign(self, act: LogicalAssign, assn: T) -> T:
         raise UnimplementedASTNodeHandler(LogicalAssign)
 
     def _begin_native(self, act: Native) -> Optional[T]:
-        pass
+        return None
 
     def _finish_native(self, act: Native, args: list[T]) -> T:
         raise UnimplementedASTNodeHandler(Native)
 
     def _begin_requires(self, act: Requires) -> Optional[T]:
-        pass
+        return None
 
     def _finish_requires(self, act: Requires, pred: T) -> T:
         raise UnimplementedASTNodeHandler(Requires)
 
     def _begin_sequence(self, act: Sequence) -> Optional[T]:
-        pass
+        return None
 
     def _finish_sequence(self, act: Sequence, stmts: list[T]) -> T:
         raise UnimplementedASTNodeHandler(Sequence)
 
     def _begin_while(self, act: While) -> Optional[T]:
-        pass
+        return None
 
     def _finish_while(self, act: While, test: T, decreases: Optional[T], do: T) -> T:
         raise UnimplementedASTNodeHandler(While)

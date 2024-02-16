@@ -83,10 +83,11 @@ class ExprCounter(Visitor[None]):
         pass
 
     def _finish_function_def(self,
-                           name: str,
-                           defn: terms.FunctionDefinition,
-                           action: None) -> None:
+                             name: str,
+                             defn: terms.FunctionDefinition,
+                             action: None) -> None:
         pass
+
 
 def test_simple_expr():
     ast = terms.BinOp(

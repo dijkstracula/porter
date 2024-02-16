@@ -99,6 +99,7 @@ High-level source architecture:
 * `ast/`        : Well-typed IVy abstract syntax tree.
 * `extraction/` : Ivy -> Java source conversion.
 * `ivy/`        : Shim to Ken's IVy.  (All `ivy` imports should try to live in here.)
+* `passes/`     : AST transforms.
 * `pp/`         : Wadler-style pretty-printer combinators.
 
 Porter uses pytest for unit tests and pyright for typechecking.

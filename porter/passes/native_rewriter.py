@@ -51,7 +51,7 @@ class NativeRewriter(TermMutVisitor):
         new_lang: str
         mapping: dict[FileLine, str]
 
-        def __init__(self, new_lang: str, mapping: dict[Position, terms.Native]):
+        def __init__(self, new_lang: str, mapping: dict[FileLine, str]):
             self.new_lang = new_lang
             self.mapping = mapping
 
@@ -98,14 +98,15 @@ class NativeRewriter(TermMutVisitor):
     mapping: dict[FileLine, str]
     sort_visitor: NativeSortRewriter
 
-    def __init__(self, new_lang: str, mapping: dict[Position, terms.Native]):
+    def __init__(self, new_lang: str, mapping: dict[FileLine, str]):
         self.new_lang = new_lang
         self.mapping = mapping
         self.sort_visitor = self.NativeSortRewriter(new_lang, mapping)
 
     def _finish_apply(self, node: terms.Apply, relsym_ret: None, args_ret: list[None]):
-        for arg in node.args:
-            arg._sort = self.sort_visitor.visit_sort(arg._sort)
+        for expr in node.args:
+            if expr._sort:
+                expr._sort = self.sort_visitor.visit_sort(expr._sort)
 
     def _finish_let(self, act: terms.Let, scope: None):
         act.vardecls = [Binding(b.name, self.sort_visitor.visit_sort(b.decl)) for b in act.vardecls]
@@ -116,9 +117,10 @@ class NativeRewriter(TermMutVisitor):
         pass
 
     def _finish_native(self, act: terms.Native, args: list[None]):
-        pos = act.pos().origin()
-        file = pos.filename.name
-        line = pos.line
+        pos = act.pos()
+        assert pos
+        file = pos.origin().filename.name
+        line = pos.origin().line
 
         if (file, line) in self.mapping:
             remapped = self.mapping[(file, line)]

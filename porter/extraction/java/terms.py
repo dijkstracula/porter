@@ -1,7 +1,9 @@
+from .quantifiers import iter_combs
 from .sorts import *
 from .utils import *
 
 from porter.ast import Binding, terms
+from porter.passes.quantifiers import bounds_for_exists, bounds_for_forall
 from porter.ast.sorts import Enum, Sort, Record
 
 from porter.ast.terms.visitor import Visitor as TermVisitor
@@ -83,6 +85,7 @@ class Extractor(TermVisitor[Doc]):
     def add_conjecture(self, conj: Binding[terms.Expr]) -> Doc:
         fmla = self.visit_expr(conj.decl)
         lineno = conj.decl.pos()
+        assert lineno
         return Text("conjectured(") + \
             quoted(conj.name) + Text(", ") + \
             quoted(lineno.filename.name) + Text(", ") + \
@@ -164,16 +167,18 @@ class Extractor(TermVisitor[Doc]):
         return lhs_ret + utils.padded(op) + rhs_ret
 
     def _finish_exists(self, node: terms.Exists, expr: Doc):
-        return Text("Exists (TODO);")
+        bound_vars = bounds_for_exists(node)
+        return iter_combs(bound_vars, expr) + Text(".anyMatch(b -> b)")
 
     def _finish_forall(self, node: terms.Forall, expr: Doc):
-        return Text("Forall (TODO);")
+        bound_vars = bounds_for_forall(node)
+        return iter_combs(bound_vars, expr) + Text(".allMatch(b -> b)")
 
     def _finish_ite(self, node: terms.Ite, test: Doc, then: Doc, els: Doc):
         return test + utils.padded("?") + then + utils.padded(":") + els
 
-    def _finish_some(self, none: terms.Some, fmla: Doc):
-        return Text("Some (TODO);")
+    def _finish_some(self, node: terms.Some, fmla: Doc):
+        return iter_combs(node.vars, fmla) + Text(".findAny()")
 
     def _finish_unop(self, node: terms.UnOp, expr: Doc):
         match node.op:

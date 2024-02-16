@@ -50,12 +50,14 @@ class Ite(Expr):
 
 @dataclass
 class Exists(Expr):
+    # XXX: should this be a list of Vars instead?
     vars: list[Binding[Sort]]
     expr: Expr
 
 
 @dataclass
 class Forall(Expr):
+    # XXX: should this be a list of Vars instead?
     vars: list[Binding[Sort]]
     expr: Expr
 

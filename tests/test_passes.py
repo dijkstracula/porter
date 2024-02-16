@@ -1,5 +1,5 @@
 from porter.ivy import shims
-from porter.passes import extensionality, freevars, native_rewriter
+from porter.passes import quantifiers, freevars, native_rewriter
 from porter.ast import terms
 import os
 
@@ -17,8 +17,10 @@ def compile_and_parse(fn) -> terms.Program:
 
 def test_extensionality_pass():
     prog = compile_and_parse(os.path.join(progdir, "004_relations_and_invariants.ivy"))
-    ext = extensionality.NonExtensionals(None)
+    ext = quantifiers.NonExtensionals(None)
     ext.visit_program(prog)
+
+    # conn_counts, link, and semaphore should be in prog.individuals.
 
     # `link` has a logical assignment `link(x, Y) := false`, so by the
     # ivy_to_cpp rules it is not extensional.
@@ -44,8 +46,6 @@ def test_freevar_pass():
     fvs = freevars.FreeVars()
     fvs.visit_expr(prog.conjectures[1].decl)
     assert(fvs.vars == set([]))
-
-    pass
 
 
 def test_native_rewriter():
