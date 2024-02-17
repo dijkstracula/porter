@@ -6,6 +6,18 @@ from enum import Enum
 from typing import Optional
 
 
+def le_order(s: terms.BinOp) -> terms.BinOp:
+    match s.op:
+        case "<" | "<=":
+            return s
+        case ">":
+            return terms.BinOp(s._ivy_node, s.rhs, "<", s.lhs)
+        case ">=":
+            return terms.BinOp(s._ivy_node, s.rhs, "<=", s.lhs)
+        case _:
+            raise Exception("Not an ordered binop")
+
+
 class Polarity(Enum):
     Forall = 1
     Exists = 2
@@ -37,6 +49,8 @@ class BoundExprs(Visitor[list[terms.Expr]]):
     def from_forall(fmla: terms.Forall) -> list[(Binding[sorts.Sort], terms.Expr)]:
         ret = []
         for b in fmla.vars:
+            # TODO: a thing I need to do in the nested visitor is turn b into a Constant!
+            # it's now bound and no longer a
             nested_visitor = BoundExprs(b.name, Polarity.Forall)
             pairs = [(b, expr) for expr in nested_visitor.visit_expr(fmla.expr)]
             ret.extend(pairs)
@@ -83,7 +97,7 @@ class BoundExprs(Visitor[list[terms.Expr]]):
                 self.flip()
                 rhs = self.visit_expr(node.rhs)
             case cmp if cmp in ["<", "<=", ">", ">="]:
-                return [node]
+                return [le_order(node)]
         return lhs + rhs
 
     def _begin_unop(self, node: terms.UnOp) -> list[terms.Expr]:
@@ -91,5 +105,3 @@ class BoundExprs(Visitor[list[terms.Expr]]):
         ret = self.visit_expr(node.expr)
         self.flip()
         return ret
-
-

@@ -1,9 +1,7 @@
-from porter.ast import Binding
-from porter.passes import quantifiers
 from porter.ast.sorts.visitor import Visitor as SortVisitor
 from porter.ast import terms
 
-from porter.quantifiers.bounds import FiniteRange, NumericInterval
+from porter.quantifiers.bounds import VarBounds, NumericInterval, AppIteration
 
 from porter.pp import Doc, Text, Nil
 from porter.pp.utils import soft_line
@@ -11,9 +9,11 @@ from porter.pp.utils import soft_line
 from typing import Optional
 
 
-def qrange_to_doc(q: FiniteRange) -> Doc:
+def var_bounds_to_doc(q: VarBounds) -> Doc:
     match q:
-        case NumericInterval(lo, hi):
+        case AppIteration(_, app, var_decls):
+            return Text(app.relsym) + Text(".iter() /* TODO */")
+        case NumericInterval(_, lo, hi):
             lo_doc = Nil()
             hi_doc = Nil()
             match lo:
@@ -30,18 +30,18 @@ def qrange_to_doc(q: FiniteRange) -> Doc:
     raise Exception(q)
 
 
-def iter_combs(vs: list[Binding[FiniteRange]], expr: Doc):
-    assert len(vs) > 0
+def iter_combs(vbs: list[VarBounds], expr: Doc):
+    assert len(vbs) > 0
 
     ret = Nil()
 
-    for b in vs[:-1]:
-        ret = ret + qrange_to_doc(b.decl) + Text(f".flatMap({b.name} ->") + soft_line
-    ret = ret + qrange_to_doc(vs[-1].decl) + Text(f".map({vs[-1].name} ->") + soft_line
+    for b in vbs[:-1]:
+        ret = ret + var_bounds_to_doc(b) + Text(f".flatMap({b.var_name} -> ") + soft_line
+    ret = ret + var_bounds_to_doc(vbs[-1]) + Text(f".map({vbs[-1].var_name} -> ") + soft_line
 
     ret = ret + expr
 
-    for _ in vs:
+    for _ in vbs:
         ret = ret + Text(")")
     return ret
 
