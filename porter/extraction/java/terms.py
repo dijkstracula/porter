@@ -3,11 +3,9 @@ from .sorts import *
 from .utils import *
 
 from porter.ast import Binding, terms
-from porter.passes.quantifiers import bounds_for_exists, bounds_for_forall
 from porter.ast.sorts import Enum, Sort, Record
-
 from porter.ast.terms.visitor import Visitor as TermVisitor
-
+from porter.quantifiers import bounds_for_exists, bounds_for_forall
 from porter.pp import Doc, Text, Line, Nil, utils
 from porter.pp.formatter import interpolate_native
 from porter.pp.utils import space

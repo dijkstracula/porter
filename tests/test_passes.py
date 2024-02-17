@@ -1,5 +1,6 @@
 from porter.ivy import shims
-from porter.passes import quantifiers, freevars, native_rewriter
+from porter.quantifiers.extensionality import NonExtensionals
+from porter.passes import freevars, native_rewriter
 from porter.ast import terms
 import os
 
@@ -17,7 +18,7 @@ def compile_and_parse(fn) -> terms.Program:
 
 def test_extensionality_pass():
     prog = compile_and_parse(os.path.join(progdir, "004_relations_and_invariants.ivy"))
-    ext = quantifiers.NonExtensionals(None)
+    ext = NonExtensionals(None)
     ext.visit_program(prog)
 
     # conn_counts, link, and semaphore should be in prog.individuals.
@@ -35,14 +36,14 @@ def test_extensionality_pass():
 def test_freevar_pass():
     prog = compile_and_parse(os.path.join(progdir, "004_relations_and_invariants.ivy"))
 
-    assert(prog.conjectures[0].name == "unique_conn") # just so we confirm we know which invariant we're dealing with.
+    assert(prog.conjectures[0].name == "symmetric_link") # just so we confirm we know which invariant we're dealing with.
     fvs = freevars.FreeVars()
     fvs.visit_expr(prog.conjectures[0].decl)
-    assert(fvs.vars == set(["X", "Y", "Z"]))
+    assert(fvs.vars == set(["X", "Y"]))
 
     # This invariant doesn't implicitly use free variables but explicitly quantifies
     # over them, so we should get the empty set here.
-    assert(prog.conjectures[1].name == "connect_downs_sem")
+    assert(prog.conjectures[1].name == "symmetric_link_explicit")
     fvs = freevars.FreeVars()
     fvs.visit_expr(prog.conjectures[1].decl)
     assert(fvs.vars == set([]))

@@ -3,15 +3,17 @@ from porter.passes import quantifiers
 from porter.ast.sorts.visitor import Visitor as SortVisitor
 from porter.ast import terms
 
+from porter.quantifiers.bounds import FiniteRange, NumericInterval
+
 from porter.pp import Doc, Text, Nil
 from porter.pp.utils import soft_line
 
 from typing import Optional
 
 
-def qrange_to_doc(q: quantifiers.FiniteRange) -> Doc:
+def qrange_to_doc(q: FiniteRange) -> Doc:
     match q:
-        case quantifiers.NumericInterval(lo, hi):
+        case NumericInterval(lo, hi):
             lo_doc = Nil()
             hi_doc = Nil()
             match lo:
@@ -25,10 +27,10 @@ def qrange_to_doc(q: quantifiers.FiniteRange) -> Doc:
                 case terms.Constant(_, rep) | terms.Var(_, rep):
                     hi_doc = Text(rep)
             return Text(f"IntStream.rangeClosed(") + lo_doc + Text(", ") + hi_doc + Text(").boxed()")
-    assert False
+    raise Exception(q)
 
 
-def iter_combs(vs: list[Binding[quantifiers.FiniteRange]], expr: Doc):
+def iter_combs(vs: list[Binding[FiniteRange]], expr: Doc):
     assert len(vs) > 0
 
     ret = Nil()

@@ -1,24 +1,42 @@
 #lang ivy1.8
 
+include numbers
+
 type pid = {0..3}
 
+function conn_counts(X: pid): nat
+
 relation link(X:pid, Y:pid)
+
 invariant [symmetric_link] link(X, Y) -> link(Y, X)
+invariant [symmetric_link_explicit] forall X, Y . link(X,Y) -> link(Y,X)
+
+relation semaphore(X:pid)
 
 process host(p: pid) = {
     after init {
+        conn_counts(X) := 0;
+        semaphore(W) := true;
+
         link(X,Y) := false;
     }
 
     export action connect(y:pid) = {
+        conn_counts(p) := conn_counts(p) + 1;
+
         link(p, y) := true;
         link(y, p) := true;
     }
 
     export action disconnect(y:pid) = {
         if link(p, y) {
+            conn_counts(p) := conn_counts(p) - 1;
             link(p, y) := false;
-            #link(y, p) := false;
+            link(y, p) := false;
         }
+    }
+
+    export action crash = {
+        link(p, Y) := false;
     }
 }
