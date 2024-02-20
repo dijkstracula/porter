@@ -30,11 +30,11 @@ def var_bounds_to_doc(q: VarBounds) -> Doc:
     raise Exception(q)
 
 
-def iter_combs(vbs: list[VarBounds], expr: Doc):
-    assert len(vbs) > 0
+def iterate_through_varbounds(vbs: list[VarBounds], expr: Doc) -> Doc:
+    if len(vbs) == 0:
+        return expr
 
     ret = Nil()
-
     for b in vbs[:-1]:
         ret = ret + var_bounds_to_doc(b) + Text(f".flatMap({b.var_name} -> ") + soft_line
     ret = ret + var_bounds_to_doc(vbs[-1]) + Text(f".map({vbs[-1].var_name} -> ") + soft_line

@@ -50,7 +50,6 @@ class BoundExprs(Visitor[list[terms.Expr]]):
         ret = []
         for b in fmla.vars:
             # TODO: a thing I need to do in the nested visitor is turn b into a Constant!
-            # it's now bound and no longer a
             nested_visitor = BoundExprs(b.name, Polarity.Forall)
             pairs = [(b, expr) for expr in nested_visitor.visit_expr(fmla.expr)]
             ret.extend(pairs)

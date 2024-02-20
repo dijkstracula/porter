@@ -7,11 +7,15 @@ from dataclasses import dataclass
 class Doc:
     def __add__(self, other: "Doc") -> "Doc":
         "Sugar for horizontal concatenation."
-        return Concat(self, other)
+        # TODO: simpling at each stage is super expensive but
+        # for debugging purposes it's preferable for now.
+        return simpl(Concat(self, other))
 
     def __or__(self, other: "Doc") -> "Doc":
         "Sugar for choice."
-        return Choice(self, other)
+        # TODO: simpling at each stage is super expensive but
+        # for debugging purposes it's preferable for now.
+        return simpl(Choice(self, other))
 
     def layout(self) -> str:
         """Converts a document to a string. """
@@ -133,3 +137,59 @@ class Choice(Doc):
     # we try to e.g. take the length of a Choice.
     d1: Doc
     d2: Doc
+
+
+def simpl(d: Doc) -> Doc:
+    "A summary of a bunch of Wadler's laws."
+    match d:
+        case Nil():
+            return Nil()
+        case Line():
+            return Line()
+        case Text("\n"):
+            return Line()
+        case Text(s):
+            return Text(s)
+        case Concat(lhs, rhs):
+            match lhs, rhs:
+                case Concat(l, r), rhs:
+                    return simpl(Concat(l, Concat(r, rhs)))
+
+            lhs = simpl(lhs)
+            rhs = simpl(rhs)
+            match (lhs, rhs):
+                case Nil() | Text(""), rhs:
+                    return rhs
+                case lhs, Nil() | Text(""):
+                    return lhs
+                case Text(l), Text(r):
+                    return Text(l + r)
+                case Text(l), Concat(Text(r), rhs):
+                    return Concat(Text(l + r), rhs)
+                case lhs, rhs:
+                    return Concat(lhs, rhs)
+        case Nest(i, d):
+            d = simpl(d)
+            if i == 0:
+                return d
+            match d:
+                case Nil():
+                    return Nil()
+                case Line():
+                    return Line()
+                case Nest(j, d2):
+                    return Nest(i + j, d2)
+                case d:
+                    return Nest(i, d)
+        case Choice(d1, d2):
+            d1 = simpl(d1)
+            d2 = simpl(d2)
+            match (d1, d2):
+                case d1, Nil():
+                    return d1
+                case Nil(), d2:
+                    return d2
+                case d1, d2:
+                    return Choice(d1, d2)
+    raise Exception(f"TODO: {d.__class__}")
+

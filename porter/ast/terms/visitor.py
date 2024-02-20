@@ -28,7 +28,12 @@ class Visitor(Generic[T]):
     actions: list[Binding[T]]
     functions: list[Binding[T]]
 
-    scopes: list[str] = []
+    scopes: list[list[str]] = []
+
+    def _in_scope(self, v: str):
+        for scope in self.scopes:
+            if v in scope: return True
+        return False
 
     @staticmethod
     def visit_program_sorts(prog: Program, visitor: SortVisitor[Sort]):
@@ -51,7 +56,7 @@ class Visitor(Generic[T]):
             self._begin_action_def(name, action)
             body = self.visit_action(action.body)
 
-            self.scopes.append(name)
+            self.scopes.append([name])
             self.actions.append(Binding(name, self._finish_action_def(name, action, body)))
             self.scopes.pop()
 
@@ -63,7 +68,7 @@ class Visitor(Generic[T]):
             self._begin_function_def(name, func)
             body = self.visit_expr(func.body)
 
-            self.scopes.append(name)
+            self.scopes.append([name])
             self.functions.append(Binding(name, self._finish_function_def(name, func, body)))
             self.scopes.pop()
 
@@ -112,18 +117,25 @@ class Visitor(Generic[T]):
                 return self._constant(node)
             case Var(_, _):
                 return self._var(node)
-            case Exists(_, _, expr):
+            case Exists(_, vardecls, expr):
                 bret = self._begin_exists(node)
                 if bret is not None: return bret
 
+                self.scopes.append([b.name for b in vardecls])
                 expr = self.visit_expr(expr)
-                return self._finish_exists(node, expr)
-            case Forall(_, _, expr):
+                ret = self._finish_exists(node, expr)
+                self.scopes.pop()
+                return ret
+
+            case Forall(_, vardecls, expr):
                 bret = self._begin_forall(node)
                 if bret is not None: return bret
 
+                self.scopes.append([b.name for b in vardecls])
                 expr = self.visit_expr(expr)
-                return self._finish_forall(node, expr)
+                ret = self._finish_forall(node, expr)
+                self.scopes.pop()
+                return ret
             case Ite(_, test, then, els):
                 bret = self._begin_ite(node)
                 if bret is not None: return bret
@@ -132,12 +144,15 @@ class Visitor(Generic[T]):
                 then = self.visit_expr(then)
                 els = self.visit_expr(els)
                 return self._finish_ite(node, test, then, els)
-            case Some(_, vars, fmla, _strat):
+            case Some(_, vardecls, fmla, _strat):
                 bret = self._begin_some(node)
                 if bret is not None: return bret
 
+                self.scopes.append([b.name for b in vardecls])
                 fmla = self.visit_expr(fmla)
-                return self._finish_some(node, fmla)
+                ret = self._finish_some(node, fmla)
+                self.scopes.pop()
+                return ret
             case UnOp(_, _op, expr):
                 bret = self._begin_unop(node)
                 if bret is not None: return bret
@@ -253,12 +268,16 @@ class Visitor(Generic[T]):
                 if els is not None:
                     els = self.visit_action(els)
                 return self._finish_if(node, test, then, els)
-            case Let(_, _vardecls, scope):
+            case Let(_, vardecls, scope):
                 bret = self._begin_let(node)
                 if bret is not None: return bret
 
+                self.scopes.append([b.name for b in vardecls])
+
                 scope = self.visit_action(scope)
-                return self._finish_let(node, scope)
+                ret = self._finish_let(node, scope)
+                self.scopes.pop()
+                return ret
             case LogicalAssign(_, _vardecls, assign):
                 bret = self._begin_logical_assign(node)
                 if bret is not None: return bret
@@ -456,4 +475,33 @@ class MutVisitor(Visitor[None]):
         pass
 
     def _finish_function_def(self, name: str, defn: FunctionDefinition, body: None):
+        pass
+
+
+class SortVisitorOverTerms(MutVisitor):
+    sort_visitor: SortVisitor[Sort]
+
+    def __init__(self, sv: SortVisitor[Sort]):
+        self.sort_visitor = sv
+
+    def _finish_apply(self, node: Apply, relsym_ret: None, args_ret: list[None]):
+        for arg in node.args:
+            s = arg.sort()
+            if s:
+                arg._sort = self.sort_visitor.visit_sort(s)
+
+    def _finish_exists(self, node: Exists, expr: None):
+        for binding in node.vars:
+            binding.decl = self.sort_visitor.visit_sort(binding.decl)
+
+    def _finish_forall(self, node: Exists, expr: None):
+        for binding in node.vars:
+            binding.decl = self.sort_visitor.visit_sort(binding.decl)
+
+    def _finish_let(self, act: Let, scope: None):
+        act.vardecls = [Binding(b.name, self.sort_visitor.visit_sort(b.decl)) for b in act.vardecls]
+
+    def _finish_action_def(self, name: str, defn: ActionDefinition, body: None):
+        defn.formal_params = [Binding(b.name, self.sort_visitor.visit_sort(b.decl)) for b in defn.formal_params]
+        defn.formal_returns = [Binding(b.name, self.sort_visitor.visit_sort(b.decl)) for b in defn.formal_returns]
         pass

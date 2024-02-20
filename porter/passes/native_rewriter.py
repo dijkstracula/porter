@@ -1,7 +1,7 @@
 from porter.ast import Binding, sorts, terms
 from porter.ast.sorts import Sort
 from porter.ast.sorts.visitor import Visitor as SortVisitor
-from porter.ast.terms.visitor import MutVisitor as TermMutVisitor
+from porter.ast.terms.visitor import SortVisitorOverTerms
 
 from porter.ivy import Position
 
@@ -12,7 +12,7 @@ FileLine = tuple[str, int]
 
 def visit(prog: terms.Program):
     remap = {
-        ("collections.ivy", 923): "HashSet<`0`>", # TODO: this is wrong
+        ("collections.ivy", 923): "HashSet<`0`>",  # TODO: this is wrong
         ("collections.ivy", 939): "`0`.add(`1`)",
         ("collections.ivy", 945): "`0`.contains(`1`)",
         ("collections.ivy", 952): "TODO",
@@ -46,7 +46,7 @@ def visit(prog: terms.Program):
     nr.visit_program_sorts(prog, NativeRewriter.NativeSortRewriter("java", remap))
 
 
-class NativeRewriter(TermMutVisitor):
+class NativeRewriter(SortVisitorOverTerms):
     class NativeSortRewriter(SortVisitor[Sort]):
         new_lang: str
         mapping: dict[FileLine, str]
@@ -102,19 +102,6 @@ class NativeRewriter(TermMutVisitor):
         self.new_lang = new_lang
         self.mapping = mapping
         self.sort_visitor = self.NativeSortRewriter(new_lang, mapping)
-
-    def _finish_apply(self, node: terms.Apply, relsym_ret: None, args_ret: list[None]):
-        for expr in node.args:
-            if expr._sort:
-                expr._sort = self.sort_visitor.visit_sort(expr._sort)
-
-    def _finish_let(self, act: terms.Let, scope: None):
-        act.vardecls = [Binding(b.name, self.sort_visitor.visit_sort(b.decl)) for b in act.vardecls]
-
-    def _finish_action_def(self, name: str, defn: terms.ActionDefinition, body: None):
-        defn.formal_params = [Binding(b.name, self.sort_visitor.visit_sort(b.decl)) for b in defn.formal_params]
-        defn.formal_returns = [Binding(b.name, self.sort_visitor.visit_sort(b.decl)) for b in defn.formal_returns]
-        pass
 
     def _finish_native(self, act: terms.Native, args: list[None]):
         pos = act.pos()

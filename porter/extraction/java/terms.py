@@ -1,4 +1,4 @@
-from .quantifiers import iter_combs
+from .quantifiers import iterate_through_varbounds
 from .sorts import *
 from .utils import *
 
@@ -166,17 +166,17 @@ class Extractor(TermVisitor[Doc]):
 
     def _finish_exists(self, node: terms.Exists, expr: Doc):
         bound_vars = bounds_for_exists(node)
-        return iter_combs(bound_vars, expr) + Text(".anyMatch(b -> b)")
+        return iterate_through_varbounds(bound_vars, expr) + Text(".anyMatch(b -> b)")
 
     def _finish_forall(self, node: terms.Forall, expr: Doc):
         bound_vars = bounds_for_forall(node)
-        return iter_combs(bound_vars, expr) + Text(".allMatch(b -> b)")
+        return iterate_through_varbounds(bound_vars, expr) + Text(".allMatch(b -> b)")
 
     def _finish_ite(self, node: terms.Ite, test: Doc, then: Doc, els: Doc):
         return test + utils.padded("?") + then + utils.padded(":") + els
 
     def _finish_some(self, node: terms.Some, fmla: Doc):
-        return iter_combs(node.vars, fmla) + Text(".findAny()")
+        return Text("TODO???")
 
     def _finish_unop(self, node: terms.UnOp, expr: Doc):
         match node.op:

@@ -1,15 +1,13 @@
 from porter.ast import sorts
 from porter.ast.sorts import Sort
 from porter.ast.sorts.visitor import Visitor as SortVisitor
-from porter.ast import Binding, terms
-from porter.ast.terms.visitor import MutVisitor as TermMutVisitor
 
 from typing import Optional
 
 from porter.ivy import Position
 
 
-class ReinterpretUninterpsSortVisitor(SortVisitor[Sort]):
+class InterpretUninterpretedVisitor(SortVisitor[Sort]):
     "Walks a sort and replaces all annotated Uninterpreted sorts with another one."
     mapping: dict[str, Sort]
 
@@ -46,30 +44,3 @@ class ReinterpretUninterpsSortVisitor(SortVisitor[Sort]):
         return sorts.Uninterpreted(name)
 
 
-class ReinterpretUninterpreted(TermMutVisitor):
-    sort_visitor: ReinterpretUninterpsSortVisitor
-
-    def __init__(self, mapping: dict[str, Sort]):
-        self.sort_visitor = ReinterpretUninterpsSortVisitor(mapping)
-
-    def _finish_apply(self, node: terms.Apply, relsym_ret: None, args_ret: list[None]):
-        for arg in node.args:
-            s = arg.sort()
-            if s:
-                arg._sort = self.sort_visitor.visit_sort(s)
-
-    def _finish_exists(self, node: terms.Exists, expr: None):
-        for binding in node.vars:
-            binding.decl = self.sort_visitor.visit_sort(binding.decl)
-
-    def _finish_forall(self, node: terms.Exists, expr: None):
-        for binding in node.vars:
-            binding.decl = self.sort_visitor.visit_sort(binding.decl)
-
-    def _finish_let(self, act: terms.Let, scope: None):
-        act.vardecls = [Binding(b.name, self.sort_visitor.visit_sort(b.decl)) for b in act.vardecls]
-
-    def _finish_action_def(self, name: str, defn: terms.ActionDefinition, body: None):
-        defn.formal_params = [Binding(b.name, self.sort_visitor.visit_sort(b.decl)) for b in defn.formal_params]
-        defn.formal_returns = [Binding(b.name, self.sort_visitor.visit_sort(b.decl)) for b in defn.formal_returns]
-        pass
