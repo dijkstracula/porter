@@ -103,7 +103,7 @@ class NativeRewriter(SortVisitorOverTerms):
         self.mapping = mapping
         self.sort_visitor = self.NativeSortRewriter(new_lang, mapping)
 
-    def _finish_native(self, act: terms.Native, args: list[None]):
+    def _finish_native_action(self, act: terms.NativeAct, args: list[None]):
         pos = act.pos()
         assert pos
         file = pos.origin().filename.name

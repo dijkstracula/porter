@@ -1,7 +1,6 @@
-from porter.ast import Binding, sorts, terms
-from porter.ast.terms.visitor import MutVisitor, Visitor
+from porter.ast import terms
+from porter.ast.terms.visitor import MutVisitor
 
-from enum import Enum
 from ivy import ivy_module as imod
 
 from typing import Optional

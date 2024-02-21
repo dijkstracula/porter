@@ -14,6 +14,22 @@ from typing import Optional
 
 
 class Extractor(TermVisitor[Doc]):
+    def relation_to_field_access(self, node: terms.Apply) -> Optional[Doc]:
+        # Unprincipled hack: field accesses on records are extracted as unary relations, so f.x
+        # is by default emitted as x(f).  The better way to do this is to have a preprocessing
+        # pass that inverts this into a FieldAccess AST node or something, but instead we can
+        # do it at extraction time if the argument to the relation is a Record, and the relsym
+        # of the application matches `<record_sort_name>.<valid record field for that sort>`.
+        if len(node.args) == 1:
+            match node.args[0].sort():
+                case Record(sort_name, fields):
+                    t = node.relsym.rsplit(".", 1)
+                    if len(t) == 2:
+                        maybe_sort_name, field_name = t
+                        if maybe_sort_name == sort_name and field_name in fields:
+                            varname = self.visit_expr(node.args[0])
+                            return varname + Text(".") + Text(field_name)
+        return None
 
     def action_sig(self, name: str, decl: terms.ActionDefinition) -> Doc:
         unboxed = UnboxedSort()
@@ -135,20 +151,9 @@ class Extractor(TermVisitor[Doc]):
                 return ident
 
     def _finish_apply(self, node: terms.Apply, relsym_ret: Doc, args_ret: list[Doc]):
-        # Unprincipled hack: field accesses on records are extracted as unary relations, so f.x
-        # is by default emitted as x(f).  The better way to do this is to have a preprocessing
-        # pass that inverts this into a FieldAccess AST node or something, but instead we can
-        # do it at extraction time if the argument to the relation is a Record, and the relsym
-        # of the application matches `<record_sort_name>.<valid record field for that sort>`.
-        if len(node.args) == 1:
-            match node.args[0].sort():
-                case Record(sort_name, fields):
-                    t = node.relsym.rsplit(".", 1)
-                    if len(t) == 2:
-                        maybe_sort_name, field_name = t
-                        if maybe_sort_name == sort_name and field_name in fields:
-                            varname = self.visit_expr(node.args[0])
-                            return varname + Text(".") + Text(field_name)
+        fld = self.relation_to_field_access(node)
+        if fld:
+            return fld
 
         return relsym_ret + utils.enclosed("(", utils.join(args_ret, ", "), ")")
 
@@ -174,6 +179,9 @@ class Extractor(TermVisitor[Doc]):
 
     def _finish_ite(self, node: terms.Ite, test: Doc, then: Doc, els: Doc):
         return test + utils.padded("?") + then + utils.padded(":") + els
+
+    def _finish_native_expr(self, node: terms.NativeExpr, args: list[Doc]) -> Doc:
+        return interpolate_native(node.fmt, args)
 
     def _finish_some(self, node: terms.Some, fmla: Doc):
         return Text("TODO???")
@@ -244,7 +252,7 @@ class Extractor(TermVisitor[Doc]):
             ret = ret + Text(" })")
         return ret
 
-    def _finish_native(self, act: terms.Native, args: list[Doc]) -> Doc:
+    def _finish_native_action(self, act: terms.NativeAct, args: list[Doc]) -> Doc:
         # TODO: bail out if we have not translated the Native out of C++.
         return interpolate_native(act.fmt, args)
 
@@ -272,5 +280,10 @@ class Extractor(TermVisitor[Doc]):
                              defn: terms.FunctionDefinition,
                              body: Doc) -> Doc:
         sig = self.function_sig(name, defn)
+
+        if isinstance(defn.body, terms.Apply):
+            fld = self.relation_to_field_access(defn.body)
+            if fld:
+                body = fld
         body = Text("return ") + body + Text(";")
         return sig + space + block(body)

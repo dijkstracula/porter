@@ -32,6 +32,9 @@ class ExprCounter(Visitor[None]):
     def _finish_ite(self, node: terms.Ite, test: None, then: None, els: None):
         self.n_expr_nodes += 1
 
+    def _finish_native_expr(self, node: terms.NativeExpr, args: list[None]) -> None:
+        self.n_expr_nodes += 1
+
     def _finish_some(self, none: terms.Some, vs: list[Binding[None]], fmla: None):
         self.n_expr_nodes += 1
 
@@ -70,7 +73,7 @@ class ExprCounter(Visitor[None]):
     def _finish_logical_assign(self, act: terms.LogicalAssign, assn: None):
         self.n_action_nodes += 1
 
-    def _finish_native(self, act: terms.Native, args: list[None]):
+    def _finish_native_action(self, act: terms.NativeAct, args: list[None]):
         self.n_action_nodes += 1
 
     def _finish_sequence(self, act: terms.Sequence, stmts: list[None]):

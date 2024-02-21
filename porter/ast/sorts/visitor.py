@@ -1,6 +1,6 @@
 from typing import Generic, Optional, TypeVar
 
-from porter.ast.sorts import Bool, BitVec, Enum, Function, Native, Number, Record, Uninterpreted, Sort
+from porter.ast.sorts import Bool, BitVec, Enum, Function, Native, Number, Record, Uninterpreted, Sort, Top
 from porter.ivy import Position
 
 T = TypeVar("T")
@@ -41,6 +41,8 @@ class Visitor(Generic[T]):
                 return self._finish_record(sort, fields_t)
             case Uninterpreted(name):
                 return self.uninterpreted(name)
+            case Top():
+                return self.top()
         raise Exception(f"TODO: {sort}")
 
     def bool(self) -> T:
@@ -69,6 +71,9 @@ class Visitor(Generic[T]):
 
     def _finish_record(self, rec: Record, fields: dict[str, T]):
         raise UnimplementedASTNodeHandler(Record)
+
+    def top(self):
+        raise UnimplementedASTNodeHandler(Top)
 
     def uninterpreted(self, name: str) -> T:
         raise UnimplementedASTNodeHandler(Uninterpreted)
@@ -99,6 +104,8 @@ class MutVisitor(Visitor[None]):
     def _finish_record(self, name: str, fields: dict[str, None]) -> None:
         pass
 
-    def uninterpreted(self, name: str) -> None:
+    def top(self):
         pass
 
+    def uninterpreted(self, name: str) -> None:
+        pass

@@ -62,6 +62,13 @@ class Forall(Expr):
     expr: Expr
 
 
+@dataclass
+class NativeExpr(Expr):
+    lang: str
+    fmt: str  # TODO: in Ivy this is a NativeCode
+    args: list[Expr]
+
+
 #
 
 SomeStrategy = Enum("SomeStrategy", ["ARBITRARY", "MINIMISE", "MAXIMISE"])
@@ -157,7 +164,8 @@ class Let(Action):
 
 
 @dataclass
-class Native(Action):
+class NativeAct(Action):
+    # TODO: these are all the same fields as a NativeExpr.  Unify?
     lang: str
     fmt: str  # TODO: in Ivy this is a NativeCode
     args: list[Expr]

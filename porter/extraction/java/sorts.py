@@ -66,6 +66,9 @@ class BoxedSort(SortVisitor[Doc]):
     def _finish_record(self, rec: sorts.Record, fields: dict[str, Doc]):
         return Text(canonicalize_identifier(rec.name))
 
+    def top(self):
+        return Text("Void")
+
     def uninterpreted(self, name: str):
         return Text("Integer")
 
@@ -100,6 +103,9 @@ class UnboxedSort(SortVisitor[Doc]):
     def _finish_record(self, rec: sorts.Record, fields: dict[str, Doc]):
         return Text(canonicalize_identifier(rec.name))
 
+    def top(self):
+        return Text("void")
+
     def uninterpreted(self, name: str):
         return Text("int")
 
@@ -133,9 +139,12 @@ class SortDeclaration(SortVisitor[Doc]):
     def _finish_record(self, rec: sorts.Record, fields: dict[str, Doc]):
         unboxed = UnboxedSort()
         field_docs = [Text("public") + space +
-                  unboxed.visit_sort(s) + space +
-                  Text(canonicalize_identifier(name)) + Text(";") for name, s in rec.fields.items()]
+                      unboxed.visit_sort(s) + space +
+                      Text(canonicalize_identifier(name)) + Text(";") for name, s in rec.fields.items()]
         return Text("public class " + canonicalize_identifier(rec.name)) + space + block(utils.join(field_docs, "\n"))
+
+    def top(self):
+        return Text("void")
 
     def uninterpreted(self, name: str):
         return Nil()

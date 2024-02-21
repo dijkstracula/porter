@@ -134,6 +134,12 @@ def expr_from_forall(im: imod.Module, fmla: ilog.Exists) -> terms.Forall:
     return terms.Forall(fmla, variables, body)
 
 
+def expr_from_native(im: imod.Module, expr: iast.NativeExpr) -> terms.NativeExpr:
+    code = str(expr.args[0])
+    args = [expr_from_ivy(im, a) for a in expr.args[1:]]
+    return terms.NativeExpr(expr, "c++", code, args)
+
+
 def expr_binding_from_labeled_formula(im: imod.Module, fmla: iast.LabeledFormula) -> Binding[terms.Expr]:
     assert isinstance(fmla.label, iast.Atom)
     name = fmla.label.rep
@@ -205,6 +211,8 @@ def expr_from_ivy(im: imod.Module, expr) -> terms.Expr:
         return expr_from_ite(im, expr)
 
     # TODOs
+    if isinstance(expr, iast.NativeExpr):
+        return expr_from_native(im, expr)
     if isinstance(expr, iast.Some):
         return expr_from_some(im, expr)
 
@@ -290,10 +298,10 @@ def local_from_ivy(im: imod.Module, iaction: iact.LocalAction) -> terms.Let:
     return terms.Let(im, varnames, act)
 
 
-def native_from_ivy(im: imod.Module, iaction: iact.NativeAction) -> terms.Native:
+def native_act_from_ivy(im: imod.Module, iaction: iact.NativeAction) -> terms.NativeAct:
     code = str(iaction.args[0])
     args = [expr_from_ivy(im, a) for a in iaction.args[1:]]
-    return terms.Native(iaction, "c++", code, args)
+    return terms.NativeAct(iaction, "c++", code, args)
 
 
 def action_from_ivy(im: imod.Module, act: iact.Action) -> terms.Action:
@@ -317,7 +325,7 @@ def action_from_ivy(im: imod.Module, act: iact.Action) -> terms.Action:
     if isinstance(act, iact.LocalAction):
         return local_from_ivy(im, act)
     if isinstance(act, iact.NativeAction):
-        return native_from_ivy(im, act)
+        return native_act_from_ivy(im, act)
     if isinstance(act, iact.Sequence):
         subacts = [action_from_ivy(im, a) for a in act.args]
         if len(subacts) == 1:
@@ -389,7 +397,7 @@ def program_from_ivy(im: imod.Module) -> terms.Program:
     conjs = [expr_binding_from_labeled_formula(im, b) for b in im.labeled_conjs]
 
     defns = []
-    for lf in im.definitions:
+    for lf in im.definitions + im.native_definitions:
         name = lf.formula.defines().name
         if name == "<":  # HACK
             continue

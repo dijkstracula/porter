@@ -11,7 +11,7 @@ class NativeRewriter(MutVisitor):
     def __init__(self, natives: dict[Tuple[str, int], str]):
         self.natives = natives
 
-    def _finish_native(self, act: terms.Native, args: list[None]):
+    def _finish_native_action(self, act: terms.NativeAct, args: list[None]):
         pos = act.pos()
         if pos is None:
             # Not annotated with an Ivy source location, so nothing we can expect to do...

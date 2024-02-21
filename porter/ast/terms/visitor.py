@@ -144,6 +144,12 @@ class Visitor(Generic[T]):
                 then = self.visit_expr(then)
                 els = self.visit_expr(els)
                 return self._finish_ite(node, test, then, els)
+            case NativeExpr(_, _lang, _fmt, args):
+                bret = self._begin_native_expr(node)
+                if bret is not None: return bret
+
+                args = [self.visit_expr(arg) for arg in args]
+                return self._finish_native_expr(node, args)
             case Some(_, vardecls, fmla, _strat):
                 bret = self._begin_some(node)
                 if bret is not None: return bret
@@ -199,6 +205,12 @@ class Visitor(Generic[T]):
 
     def _finish_ite(self, node: Ite, test: T, then: T, els: T) -> T:
         raise UnimplementedASTNodeHandler(Ite)
+
+    def _begin_native_expr(self, node: NativeExpr) -> Optional[T]:
+        pass
+
+    def _finish_native_expr(self, node: NativeExpr, args: list[T]) -> T:
+        raise UnimplementedASTNodeHandler(NativeExpr)
 
     def _begin_some(self, node: Some) -> Optional[T]:
         pass
@@ -284,12 +296,12 @@ class Visitor(Generic[T]):
 
                 assign = self.visit_action(assign)
                 return self._finish_logical_assign(node, assign)
-            case Native(_, _lang, _fmt, args):
-                bret = self._begin_native(node)
+            case NativeAct(_, _lang, _fmt, args):
+                bret = self._begin_native_action(node)
                 if bret is not None: return bret
 
                 args = [self.visit_expr(arg) for arg in args]
-                return self._finish_native(node, args)
+                return self._finish_native_action(node, args)
             case Requires(_, pred):
                 bret = self._begin_requires(node)
                 if bret is not None: return bret
@@ -373,11 +385,11 @@ class Visitor(Generic[T]):
     def _finish_logical_assign(self, act: LogicalAssign, assn: T) -> T:
         raise UnimplementedASTNodeHandler(LogicalAssign)
 
-    def _begin_native(self, act: Native) -> Optional[T]:
+    def _begin_native_action(self, act: NativeAct) -> Optional[T]:
         return None
 
-    def _finish_native(self, act: Native, args: list[T]) -> T:
-        raise UnimplementedASTNodeHandler(Native)
+    def _finish_native_action(self, act: NativeAct, args: list[T]) -> T:
+        raise UnimplementedASTNodeHandler(NativeAct)
 
     def _begin_requires(self, act: Requires) -> Optional[T]:
         return None
@@ -421,6 +433,9 @@ class MutVisitor(Visitor[None]):
     def _finish_ite(self, node: Ite, test: None, then: None, els: None):
         pass
 
+    def _finish_native_expr(self, node: NativeExpr, args: list[None]):
+        pass
+
     def _finish_some(self, node: Some, fmla: None):
         pass
 
@@ -459,7 +474,7 @@ class MutVisitor(Visitor[None]):
     def _finish_logical_assign(self, act: LogicalAssign, assn: None):
         pass
 
-    def _finish_native(self, act: Native, args: list[None]):
+    def _finish_native_action(self, act: NativeAct, args: list[None]):
         pass
 
     def _finish_requires(self, act: Requires, pred: None):
@@ -500,6 +515,9 @@ class SortVisitorOverTerms(MutVisitor):
 
     def _finish_let(self, act: Let, scope: None):
         act.vardecls = [Binding(b.name, self.sort_visitor.visit_sort(b.decl)) for b in act.vardecls]
+
+    def _finish_function_def(self, name: str, defn: FunctionDefinition, body: None):
+        defn.formal_params = [Binding(b.name, self.sort_visitor.visit_sort(b.decl)) for b in defn.formal_params]
 
     def _finish_action_def(self, name: str, defn: ActionDefinition, body: None):
         defn.formal_params = [Binding(b.name, self.sort_visitor.visit_sort(b.decl)) for b in defn.formal_params]

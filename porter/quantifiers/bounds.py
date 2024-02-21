@@ -35,8 +35,9 @@ class AppIteration(VarBounds):
 class NumericInterval(VarBounds):
     """Represents the bounds of a Var that we've observed in a formula.
     For the bounds to be finite, both lo and hi must be non-None. """
-    lo: Optional[int | terms.Constant | terms.Var]
-    hi: Optional[int | terms.Constant | terms.Var]
+
+    lo: Optional[int | terms.Expr]
+    hi: Optional[int | terms.Expr]
 
     @staticmethod
     def from_binding(b: Binding[sorts.Sort]) -> "NumericInterval":

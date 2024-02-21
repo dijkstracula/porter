@@ -73,6 +73,11 @@ class Record(Sort):
     fields: dict[str, Sort]
 
 
+@dataclass(frozen=True)
+class Top(Sort):
+    pass
+
+
 def strip_prefixes(prefixes: list[str], sep: str, s: str) -> str:
     prefix = sep.join(prefixes) + sep
     if s.startswith(prefix):
@@ -132,4 +137,6 @@ def from_ivy(sort) -> Sort:
         native_blob = native_code.code.strip()
         args = [str(arg) for arg in sort.args[1:]]
         return Native(Position.from_ivy(sort.lineno), native_blob, args)
+    if isinstance(sort, ilog.TopSort):
+        return Top()
     raise Exception(f"TODO {type(sort)}")
