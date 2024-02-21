@@ -89,12 +89,10 @@ def record_from_ivy(im: imod.Module, name: str) -> Record:
     if name not in im.sort_destructors:
         raise Exception(f"is {name} the name of a class?")
 
-    # TODO: we should accumulate scopes, I think - nested classes may require more than one name
-    # to be stripped.  Should name instead be a scoping context, maybe of type [str]?
-
     fields = {}
     for c in im.sort_destructors[name]:
-        field_name = strip_prefixes([name], ".", c.name)
+        field_name = c.name.rsplit(".", 1)[-1]
+        #field_name = strip_prefixes([name], ".", c.name)
         field_sort = from_ivy(c.sort)
         assert isinstance(field_sort, Function)
         fields[field_name] = field_sort.range

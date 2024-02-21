@@ -39,7 +39,8 @@ class BoundExprs(Visitor[list[terms.Expr]]):
     @staticmethod
     def from_exists(fmla: terms.Exists) -> list[(Binding[sorts.Sort], terms.Expr)]:
         ret = []
-        for b in fmla.vars:
+        free_vars = fmla.vars
+        for b in free_vars:
             nested_visitor = BoundExprs(b.name, Polarity.Exists)
             pairs = [(b, expr) for expr in nested_visitor.visit_expr(fmla.expr)]
             ret.extend(pairs)

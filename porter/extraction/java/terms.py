@@ -26,7 +26,7 @@ class Extractor(TermVisitor[Doc]):
                     t = node.relsym.rsplit(".", 1)
                     if len(t) == 2:
                         maybe_sort_name, field_name = t
-                        if maybe_sort_name == sort_name and field_name in fields:
+                        if field_name in fields:  # and maybe_sort_name == sort_name:
                             varname = self.visit_expr(node.args[0])
                             return varname + Text(".") + Text(field_name)
         return None
