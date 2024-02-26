@@ -377,7 +377,16 @@ def function_def_from_ivy(im: imod.Module, defn: iast.Definition) -> terms.Funct
 
     rhs = expr_from_ivy(im, defn.args[1])
 
-    return terms.FunctionDefinition(defn, formal_params, rhs)
+    ret = terms.FunctionDefinition(defn.args[0].rep, formal_params, rhs)
+
+    # One more piece of surgery: for some reason, NativeExpr's types are Top (presumably because we can't actually
+    # typecheck its contents!)
+    if isinstance(rhs, terms.NativeExpr):
+        s = ret.sort()
+        assert isinstance(s, sorts.Function)
+        rhs._sort = s.range
+
+    return ret
 
 
 def program_from_ivy(im: imod.Module) -> terms.Program:

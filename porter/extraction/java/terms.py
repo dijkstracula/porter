@@ -87,12 +87,8 @@ class Extractor(TermVisitor[Doc]):
 
     def export_action(self, action: Binding[terms.ActionDefinition]) -> Doc:
         args = [self._identifier(action.name)]
-        lineno = action.decl.pos()
-        assert lineno
         return Text("exported(") + \
-            quoted(action.name) + Text(", ") + \
-            quoted(lineno.filename.name) + Text(", ") + \
-            Text(str(lineno.line)) + Text(", ") + \
+            Text("this::") + quoted(action.name) + Text(", ") + \
             utils.join(args, ", ") + \
             Text(");")
 
