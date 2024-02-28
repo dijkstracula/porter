@@ -92,10 +92,11 @@ class Extractor(TermVisitor[Doc]):
         return Text("protected") + space + ret + space + self._identifier(name) + params
 
     def export_action(self, action: Binding[terms.ActionDefinition]) -> Doc:
-        args = [self._identifier(action.name)]
+        args = [ArbitraryGenerator("a").visit_sort(b.decl) for b in action.decl.formal_params]
         return Text("exported(") + \
-            Text("this::") + quoted(action.name) + Text(", ") + \
-            utils.join(args, ", ") + \
+            quoted(action.name) + utils.soft_comma + \
+            Text("this::") + self._identifier(action.name) + utils.soft_comma + \
+            utils.join(args, utils.soft_comma) + \
             Text(");")
 
     def add_conjecture(self, conj: Binding[terms.Expr]) -> Doc:
@@ -157,7 +158,8 @@ class Extractor(TermVisitor[Doc]):
         fld = self.relation_to_field_access(node)
         if fld:
             return fld
-
+        if isinstance(node.sort(), sorts.Function):
+            return relsym_ret + utils.enclosed(".get(", utils.join(args_ret, ", "), ")")
         return relsym_ret + utils.enclosed("(", utils.join(args_ret, ", "), ")")
 
     def _finish_binop(self, node: terms.BinOp, lhs_ret: Doc, rhs_ret: Doc):

@@ -1,4 +1,4 @@
-from porter.pp import Doc, Text, Line, Nest, Nil, utils
+from porter.pp import Doc, Text, Line, Nest, utils
 
 semi = Text(";")
 
@@ -23,3 +23,7 @@ def canonicalize_identifier(s: str) -> str:
         .replace(":", "__") \
         .replace("[", "_of_") \
         .replace("]", "_")
+
+
+def record_metaclass_name(name: str):
+    return name + "__ivysort"

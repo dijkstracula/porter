@@ -46,6 +46,12 @@ class Visitor(Generic[T]):
             f.formal_params = [Binding(b.name, visitor.visit_sort(b.decl)) for b in f.formal_params]
             f.body._sort = visitor.visit_sort(f.body.sort())
 
+        for binding in prog.actions:
+            f = binding.decl
+            f.formal_params = [Binding(b.name, visitor.visit_sort(b.decl)) for b in f.formal_params]
+            if f.body.sort():
+                f.body._sort = visitor.visit_sort(f.body.sort())
+
     def visit_program(self, prog: Program):
         self._begin_program(prog)
 

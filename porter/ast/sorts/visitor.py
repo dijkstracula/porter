@@ -27,7 +27,9 @@ class Visitor(Generic[T]):
             case Enum(name, discs):
                 return self.enum(name, discs)
             case Function(domain, range):
-                self._begin_function(sort)
+                bret = self._begin_function(sort)
+                if bret:
+                    return bret
                 domain = [self.visit_sort(d) for d in domain]
                 range = self.visit_sort(range)
                 return self._finish_function(sort, domain, range)
@@ -36,7 +38,9 @@ class Visitor(Generic[T]):
             case Number(name, lo, hi):
                 return self.numeric(name, lo, hi)
             case Record(_name, fields):
-                self._begin_record(sort)
+                bret = self._begin_record(sort)
+                if bret:
+                    return bret
                 fields_t = {name: self.visit_sort(sort) for name, sort in fields.items()}
                 return self._finish_record(sort, fields_t)
             case Uninterpreted(name):
@@ -54,7 +58,7 @@ class Visitor(Generic[T]):
     def enum(self, name: str, discriminants: tuple[str, ...]):
         raise UnimplementedASTNodeHandler(Enum)
 
-    def _begin_function(self, node: Function):
+    def _begin_function(self, node: Function) -> Optional[T]:
         pass
 
     def _finish_function(self, node: Function, domain: list[T], range: T) -> T:
@@ -66,7 +70,7 @@ class Visitor(Generic[T]):
     def numeric(self, name: str, lo: Optional[int], hi: Optional[int]):
         raise UnimplementedASTNodeHandler(Number)
 
-    def _begin_record(self, rec: Record):
+    def _begin_record(self, rec: Record) -> Optional[T]:
         pass
 
     def _finish_record(self, rec: Record, fields: dict[str, T]):

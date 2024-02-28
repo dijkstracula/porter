@@ -392,9 +392,14 @@ def function_def_from_ivy(im: imod.Module, defn: iast.Definition) -> terms.Funct
 def program_from_ivy(im: imod.Module) -> terms.Program:
     porter_sorts = {}
     for name, ivy_sort in list(im.sig.sorts.items()) + list(im.native_types.items()):
-        if name in im.sig.interp and not isinstance(im.sig.interp[name], str):
-            # XXX: why should the values of im.sig.interp ever not be a Sort?
-            porter_sort = sorts.from_ivy(im.sig.interp[name])
+        if name in im.sig.interp:
+            if isinstance(im.sig.interp[name], str):
+                if not im.sig.interp[name].startswith("bv["):
+                    continue
+                width = int(im.sig.interp[name][3:-1])
+                porter_sort = sorts.BitVec(width)
+            else:
+                porter_sort = sorts.from_ivy(im.sig.interp[name])
         elif name in im.sort_destructors:
             porter_sort = sorts.record_from_ivy(im, name)
         else:
@@ -416,12 +421,9 @@ def program_from_ivy(im: imod.Module) -> terms.Program:
             continue
         defns.append(Binding(name, function_def_from_ivy(im, lf.formula)))
 
-    # At this point, Records are going to marked as bound but typed as Uninterpreted.
-    # Do a pass to patch those up.
-    # Seems like we have a similar problem with Natives.  (TODO: what else???)
+    # At this point, Records are going to marked as bound but typed as Uninterpreted. Do a pass to patch those up.
     to_remap: dict[str, sorts.Sort] = {name: sorts.record_from_ivy(im, name) for name in im.sort_destructors}
-    to_remap.update({name: sort for name, sort in porter_sorts.items() if isinstance(sort, sorts.Native)})
-    # TODO: also walk sig.interp, but that mapping's values are not well typed so I don't know how to handle them yet.
+    to_remap.update({name: sort for name, sort in porter_sorts.items() if not isinstance(sort, sorts.Uninterpreted)})
 
     prog = terms.Program(im, porter_sorts, vardecls, inits, actions, defns, conjs)
 

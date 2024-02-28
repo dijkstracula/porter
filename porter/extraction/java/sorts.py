@@ -12,10 +12,12 @@ from typing import Optional
 
 
 class DefaultValue(SortVisitor[Doc]):
+    "A sensible initializer value for values of a given sort."
+
     def bool(self):
         return Text("false")
 
-    def bv(self, name: str, width: int):
+    def bv(self, width: int):
         if width > 64:
             raise Exception("BV too wide")
         if width > 8:
@@ -44,10 +46,12 @@ class DefaultValue(SortVisitor[Doc]):
 
 
 class BoxedSort(SortVisitor[Doc]):
+    "A reference type for a given sort"
+
     def bool(self):
         return Text("Boolean")
 
-    def bv(self, name: str, width: int):
+    def bv(self, width: int):
         if width > 64:
             raise Exception("BV too wide")
         if width > 8:
@@ -58,7 +62,7 @@ class BoxedSort(SortVisitor[Doc]):
         return Text(name)
 
     def _finish_function(self, node: sorts.Function, domain: list[Doc], range: Doc):
-        return Text("Action") + Text(str(len(domain) + 1))  # TODO: generics
+        return Text("beguine.Maps.Map") + Text(str(len(domain)))  # TODO: generics
 
     def native(self, lang: str, fmt: str, args: list[str]):
         return interpolate_native(fmt, [Text(arg) for arg in args])
@@ -77,10 +81,12 @@ class BoxedSort(SortVisitor[Doc]):
 
 
 class UnboxedSort(SortVisitor[Doc]):
+    "A value type for a given sort."
+
     def bool(self):
         return Text("boolean")
 
-    def bv(self, name: str, width: int):
+    def bv(self, width: int):
         if width > 64:
             raise Exception("BV too wide")
         if width > 8:
@@ -94,7 +100,7 @@ class UnboxedSort(SortVisitor[Doc]):
         boxed = BoxedSort()
         type_args = [boxed.visit_sort(s) for s in node.domain + [node.range]]
 
-        cls = Text("Function") + Text(str(len(type_args)))
+        cls = Text("beguine.Maps.Map") + Text(str(len(node.domain)))
         return cls + utils.enclosed("<", utils.join(type_args, ", "), ">")
 
     def native(self, lang: str, fmt: str, args: list[str]):
@@ -116,14 +122,10 @@ class UnboxedSort(SortVisitor[Doc]):
 class SortDeclaration(SortVisitor[Doc]):
     """Many sorts don't need explicit declarations extracted, but here are the ones that do. """
 
-    @staticmethod
-    def record_metaclass_name(name: str):
-        return name + "__ivysort"
-
     def bool(self):
         return Nil()
 
-    def bv(self, name: str, width: int):
+    def bv(self, width: int):
         return Nil()
 
     def enum(self, name: str, discriminants: list[str]):
@@ -134,7 +136,7 @@ class SortDeclaration(SortVisitor[Doc]):
         boxed = BoxedSort()
         type_args = [boxed.visit_sort(s) for s in node.domain + [node.range]]
 
-        cls = Text("Function") + Text(str(len(type_args)))
+        cls = Text("beguine.Maps.Map") + Text(str(len(node.domain)))
         return cls + utils.enclosed("<", utils.join(type_args, ", "), ">")
 
     def native(self, lang: str, fmt: str, args: list[str]):
@@ -151,7 +153,7 @@ class SortDeclaration(SortVisitor[Doc]):
         clazz_decl = Text("public class " + recname) + space + block(utils.join(field_docs, "\n"))
 
         # TODO: look at how something like shapeless might help with this.
-        metaclass_decl = Text("public class ") + Text(SortDeclaration.record_metaclass_name(recname)) + \
+        metaclass_decl = Text("public class ") + Text(record_metaclass_name(recname)) + \
                          Text(" extends sorts.Record<") + Text(recname) + Text("> {}")
 
         return clazz_decl + Line() + metaclass_decl + Line()
@@ -161,3 +163,28 @@ class SortDeclaration(SortVisitor[Doc]):
 
     def uninterpreted(self, name: str):
         return Nil()
+
+
+class ArbitraryGenerator(SortVisitor[Doc]):
+    "Produces an expression to invoke an Arbitrary to generate a value of a given Sort."
+
+    arbitrary_name: Doc
+
+    def __init__(self, arbitrary_name: str):
+        self.arbitrary_name = Text(arbitrary_name)
+
+    def bv(self, width: int) -> Doc:
+        return self.arbitrary_name + Text(f".fromIvySort(new beguine.sorts.BitVec({width}))")
+
+    def numeric(self, name: str, lo: Optional[int], hi: Optional[int]):
+        if lo is None:
+            raise Exception(f"Couldn't infer a lower bound for {name}")
+        if hi is None:
+            raise Exception(f"Couldn't infer an upper bound for {name}")
+        return self.arbitrary_name + Text(f".fromIvySort(new beguine.sorts.Number({lo}, {hi}))")
+
+    def _begin_record(self, rec: sorts.Record) -> Optional[Doc]:
+        return Text(record_metaclass_name(rec.name))
+
+    def uninterpreted(self, name: str) -> Doc:
+        raise Exception(f"Sort {name} is marked as uninterpreted; cannot infer a finite bound")
