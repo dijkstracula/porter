@@ -37,8 +37,11 @@ class Extractor(TermVisitor[Doc]):
         if len(decl.formal_returns) > 1:
             raise Exception("TODO: I don't know how to handle tuples in return types yet")
 
+        # TODO: unfortunately void functions need to produce Void, since Java doesn't distinguish between void
+        # and j.l.Void.  Perhaps we should have a transformation pass that implicitly adds a formal return
+        # so we don't have to special-case it at extraction time?
         if len(decl.formal_returns) == 0:
-            ret = Text("void")
+            ret = Text("Void")
         else:
             ret = unboxed.visit_sort(decl.formal_returns[0].decl)
 
@@ -51,10 +54,13 @@ class Extractor(TermVisitor[Doc]):
         body = self.visit_action(defn.body)
         rets = defn.formal_returns
         if len(rets) == 0:
-            return body  # This is a void function.
-        if len(rets) > 1:
+            # return body  # This is a void function.
+            ret = Binding("__void_ret", sorts.Top())
+        elif len(rets) == 1:
+            ret = rets[0]
+        else:
             raise Exception("TODO: multiple returns")
-        ret = rets[0]
+
         if ret.name not in [b.name for b in defn.formal_params]:
             retdecl = self.vardecl(ret) + semi + Line()
         else:
@@ -115,7 +121,7 @@ class Extractor(TermVisitor[Doc]):
                exportdocs + [utils.soft_line] + \
                conjdocs + [utils.soft_line] + \
                inits
-        return Text(f"public {isolate_name}()") + space + block(utils.join(body, "\n"))
+        return Text(f"public {isolate_name}(Arbitrary a)") + space + block(utils.join(body, "\n"))
 
     def vardecl(self, binding: Binding[Sort]):
         sort = UnboxedSort().visit_sort(binding.decl)

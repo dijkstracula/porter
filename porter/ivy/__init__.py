@@ -50,6 +50,11 @@ def symbols(im: imod.Module) -> Iterable[log.Const]:
                 if sym not in memo:
                     memo.add(sym)
                     yield sym
+        elif isinstance(sym.sort, log.EnumeratedSort):
+            if sym not in sym.sort.constructors:
+                if sym not in memo:
+                    memo.add(sym)
+                    yield sym
         elif isinstance(sym, log.Const):
             if sym not in memo:
                 memo.add(sym)

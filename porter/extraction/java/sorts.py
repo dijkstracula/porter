@@ -36,6 +36,9 @@ class DefaultValue(SortVisitor[Doc]):
     def _finish_record(self, rec: sorts.Record, fields: dict[str, Doc]):
         return Text("new " + canonicalize_identifier(rec.name) + "()")
 
+    def top(self):
+        return Text("null")
+
     def uninterpreted(self, name: str):
         return Text("0")
 
@@ -104,7 +107,7 @@ class UnboxedSort(SortVisitor[Doc]):
         return Text(canonicalize_identifier(rec.name))
 
     def top(self):
-        return Text("void")
+        return Text("Void")
 
     def uninterpreted(self, name: str):
         return Text("int")
@@ -112,6 +115,10 @@ class UnboxedSort(SortVisitor[Doc]):
 
 class SortDeclaration(SortVisitor[Doc]):
     """Many sorts don't need explicit declarations extracted, but here are the ones that do. """
+
+    @staticmethod
+    def record_metaclass_name(name: str):
+        return name + "__ivysort"
 
     def bool(self):
         return Nil()
@@ -137,14 +144,20 @@ class SortDeclaration(SortVisitor[Doc]):
         return Nil()
 
     def _finish_record(self, rec: sorts.Record, fields: dict[str, Doc]):
-        unboxed = UnboxedSort()
+        recname = canonicalize_identifier(rec.name)
         field_docs = [Text("public") + space +
-                      unboxed.visit_sort(s) + space +
+                      UnboxedSort().visit_sort(s) + space +
                       Text(canonicalize_identifier(name)) + Text(";") for name, s in rec.fields.items()]
-        return Text("public class " + canonicalize_identifier(rec.name)) + space + block(utils.join(field_docs, "\n"))
+        clazz_decl = Text("public class " + recname) + space + block(utils.join(field_docs, "\n"))
+
+        # TODO: look at how something like shapeless might help with this.
+        metaclass_decl = Text("public class ") + Text(SortDeclaration.record_metaclass_name(recname)) + \
+                         Text(" extends sorts.Record<") + Text(recname) + Text("> {}")
+
+        return clazz_decl + Line() + metaclass_decl + Line()
 
     def top(self):
-        return Text("void")
+        return Text("Void")
 
     def uninterpreted(self, name: str):
         return Nil()

@@ -9,13 +9,13 @@ class Doc:
         "Sugar for horizontal concatenation."
         # TODO: simpling at each stage is super expensive but
         # for debugging purposes it's preferable for now.
-        return simpl(Concat(self, other))
+        return simpl(Concat(self, other), recurse=False)
 
     def __or__(self, other: "Doc") -> "Doc":
         "Sugar for choice."
         # TODO: simpling at each stage is super expensive but
         # for debugging purposes it's preferable for now.
-        return simpl(Choice(self, other))
+        return simpl(Choice(self, other), recurse=False)
 
     def layout(self) -> str:
         """Converts a document to a string. """
@@ -139,7 +139,7 @@ class Choice(Doc):
     d2: Doc
 
 
-def simpl(d: Doc) -> Doc:
+def simpl(d: Doc, recurse=True) -> Doc:
     "A summary of a bunch of Wadler's laws."
     match d:
         case Nil():
@@ -154,20 +154,22 @@ def simpl(d: Doc) -> Doc:
             match lhs, rhs:
                 case Concat(l, r), rhs:
                     return simpl(Concat(l, Concat(r, rhs)))
-
-            lhs = simpl(lhs)
-            rhs = simpl(rhs)
-            match (lhs, rhs):
-                case Nil() | Text(""), rhs:
-                    return rhs
-                case lhs, Nil() | Text(""):
-                    return lhs
-                case Text(l), Text(r):
-                    return Text(l + r)
-                case Text(l), Concat(Text(r), rhs):
-                    return Concat(Text(l + r), rhs)
-                case lhs, rhs:
-                    return Concat(lhs, rhs)
+            if recurse:
+                lhs = simpl(lhs)
+                rhs = simpl(rhs)
+                match (lhs, rhs):
+                    case Nil() | Text(""), rhs:
+                        return rhs
+                    case lhs, Nil() | Text(""):
+                        return lhs
+                    case Text(l), Text(r):
+                        return Text(l + r)
+                    case Text(l), Concat(Text(r), rhs):
+                        return Concat(Text(l + r), rhs)
+                    case lhs, rhs:
+                        return Concat(lhs, rhs)
+            else:
+                return d
         case Nest(i, d):
             d = simpl(d)
             if i == 0:
@@ -182,8 +184,9 @@ def simpl(d: Doc) -> Doc:
                 case d:
                     return Nest(i, d)
         case Choice(d1, d2):
-            d1 = simpl(d1)
-            d2 = simpl(d2)
+            if recurse:
+                d1 = simpl(d1)
+                d2 = simpl(d2)
             match (d1, d2):
                 case d1, Nil():
                     return d1
