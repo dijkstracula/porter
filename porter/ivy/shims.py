@@ -392,9 +392,13 @@ def function_def_from_ivy(im: imod.Module, defn: iast.Definition) -> terms.Funct
 def program_from_ivy(im: imod.Module) -> terms.Program:
     porter_sorts = {}
     for name, ivy_sort in list(im.sig.sorts.items()) + list(im.native_types.items()):
-        porter_sort = sorts.from_ivy(ivy_sort)
-        if name in im.sort_destructors:
+        if name in im.sig.interp and not isinstance(im.sig.interp[name], str):
+            # XXX: why should the values of im.sig.interp ever not be a Sort?
+            porter_sort = sorts.from_ivy(im.sig.interp[name])
+        elif name in im.sort_destructors:
             porter_sort = sorts.record_from_ivy(im, name)
+        else:
+            porter_sort = sorts.from_ivy(ivy_sort)
         porter_sorts[name] = porter_sort
     vardecls = [binding_from_ivy_const(im, sym) for sym in members(im)]
     inits = [action_from_ivy(im, a) for a in im.initial_actions]

@@ -85,6 +85,23 @@ def strip_prefixes(prefixes: list[str], sep: str, s: str) -> str:
     return s
 
 
+def range_from_ivy(sort: ilog.RangeSort) -> Number:
+    assert isinstance(sort.lb, ilog.Const)
+    assert isinstance(sort.ub, ilog.Const)
+    if not sort.lb.name.isnumeric():
+        # raise Exception("TODO: haven't handled non-constant values in ranges yet")
+        lo = None
+    else:
+        lo = int(sort.lb.name)
+    if not sort.ub.name.isnumeric():
+        # raise Exception("TODO: haven't handled non-constant values in ranges yet")
+        hi = None
+    else:
+        hi = int(sort.ub.name)
+
+    return Number(sort.name, lo, hi)
+
+
 def record_from_ivy(im: imod.Module, name: str) -> Record:
     if name not in im.sort_destructors:
         raise Exception(f"is {name} the name of a class?")
@@ -92,7 +109,7 @@ def record_from_ivy(im: imod.Module, name: str) -> Record:
     fields = {}
     for c in im.sort_destructors[name]:
         field_name = c.name.rsplit(".", 1)[-1]
-        #field_name = strip_prefixes([name], ".", c.name)
+        # field_name = strip_prefixes([name], ".", c.name)
         field_sort = from_ivy(c.sort)
         assert isinstance(field_sort, Function)
         fields[field_name] = field_sort.range
@@ -129,6 +146,8 @@ def from_ivy(sort) -> Sort:
         domain = [from_ivy(s) for s in sort.domain]
         ret = from_ivy(sort.range)
         return Function(domain, ret)
+    if isinstance(sort, ilog.RangeSort):
+        return range_from_ivy(sort)
     if isinstance(sort, iast.NativeType):
         native_code = sort.args[0]
         assert isinstance(native_code, iast.NativeCode)

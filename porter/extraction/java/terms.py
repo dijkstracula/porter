@@ -108,10 +108,11 @@ class Extractor(TermVisitor[Doc]):
              exports: list[Binding[terms.ActionDefinition]],
              conjs: list[Binding[terms.Expr]],
              inits: list[Doc]):
-        exportdocs = [self.export_action(e) for e in exports]
-        conjdocs = [self.add_conjecture(conj) for conj in conjs]
+        exportdocs: list[Doc] = [self.export_action(e) for e in exports]
+        conjdocs: list[Doc] = [self.add_conjecture(conj) for conj in conjs]
 
-        body = exportdocs + [utils.soft_line] + \
+        body = [Text("super();") + Line()] + \
+               exportdocs + [utils.soft_line] + \
                conjdocs + [utils.soft_line] + \
                inits
         return Text(f"public {isolate_name}()") + space + block(utils.join(body, "\n"))
