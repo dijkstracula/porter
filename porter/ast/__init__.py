@@ -30,7 +30,7 @@ class AST:
             # TODO: contemplate a top sort
             self._sort = None
         elif not hasattr(self._ivy_node, 'sort'):
-            #raise Exception(f"Missing sort for {self._ivy_node}")
+            # raise Exception(f"Missing sort for {self._ivy_node}")
             self._sort = None
         else:
             self._sort = sorts.from_ivy(self._ivy_node)

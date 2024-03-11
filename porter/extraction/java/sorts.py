@@ -170,8 +170,14 @@ class ArbitraryGenerator(SortVisitor[Doc]):
 
     arbitrary_name: Doc
 
+    node_id_max: int
+
     def __init__(self, arbitrary_name: str):
         self.arbitrary_name = Text(arbitrary_name)
+
+        # Disgusting hack - Ivy reads this in from the CLI
+        # https://github.com/dijkstracula/porter/issues/5
+        self.node_id_max = 3
 
     def bv(self, width: int) -> Doc:
         return self.arbitrary_name + Text(f".fromIvySort(new beguine.sorts.BitVec({width}))")
@@ -180,11 +186,15 @@ class ArbitraryGenerator(SortVisitor[Doc]):
         if lo is None:
             raise Exception(f"Couldn't infer a lower bound for {name}")
         if hi is None:
-            raise Exception(f"Couldn't infer an upper bound for {name}")
+            if name.endswith("id"):
+                hi = self.node_id_max
+            else:
+                raise Exception(f"Couldn't infer an upper bound for {name}")
         return self.arbitrary_name + Text(f".fromIvySort(new beguine.sorts.Number({lo}, {hi}))")
 
     def _begin_record(self, rec: sorts.Record) -> Optional[Doc]:
         return Text(record_metaclass_name(rec.name))
 
     def uninterpreted(self, name: str) -> Doc:
-        raise Exception(f"Sort {name} is marked as uninterpreted; cannot infer a finite bound")
+        # raise Exception(f"Sort {name} is marked as uninterpreted; cannot infer a finite bound")
+        return self.arbitrary_name + Text(f".fromIvySort(new beguine.sorts.Number({-100}, {100})")

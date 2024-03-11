@@ -23,7 +23,7 @@ class JavaExtractionTests(unittest.TestCase):
 
         void_procedure = terms.ActionDefinition(None, terms.ActionKind.NORMAL, [], [], body)
         extracted = Naive(80).format(self.extractor.action_sig(name, void_procedure))
-        self.assertEqual(extracted.layout(), "public void some_action()")
+        self.assertEqual(extracted.layout(), "public Void some_action()")
 
     def test_action_sig_void(self):
         name = "some_action"
@@ -36,7 +36,7 @@ class JavaExtractionTests(unittest.TestCase):
             [],
             body)
         extracted = Naive(80).format(self.extractor.action_sig(name, void_procedure))
-        self.assertEqual(extracted.layout(), "public void some_action(int a)")
+        self.assertEqual(extracted.layout(), "public Void some_action(int a)")
 
     def test_action_sig(self):
         name = "some_action"

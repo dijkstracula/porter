@@ -1,8 +1,11 @@
 from porter.ast import Binding, sorts, terms
+from porter.ivy.shims import program_from_ivy
 from porter.passes.quantifiers import BoundExprs, Polarity
 from porter.quantifiers.bounds import AppIteration, NumericInterval, constraints_from_exprs
 
 import unittest
+
+from tests import compile_toplevel
 
 
 class SortRangeTests(unittest.TestCase):
@@ -93,3 +96,45 @@ class BoundExprsTests(unittest.TestCase):
                             terms.BinOp(None, zero_ge_x, "or", x_le_10))
         bound_exprs = BoundExprs.from_exists(fmla)
         self.assertEqual(bound_exprs, [])
+
+    def test_member_existential(self):
+        mod = """
+        include collections
+        include numbers
+        include order
+
+        module set(basis) = {
+            type this
+
+            instance arridx : unbounded_sequence
+            instance arr:array(arridx,basis)
+
+            destructor repr(X:this) : arr.t
+
+            relation member(E:basis,S:this)
+            definition member(y: basis, X:this) =
+              exists Z : arridx.
+                0 <= Z & Z < repr(X).end & repr(X).value(Z) = y
+
+            action emptyset returns(s:this)
+            implement emptyset {
+                repr(s) := arr.create(0,0)
+            }
+
+            after emptyset {
+                assert ~member(E,s);
+            }
+        }
+
+        type node_id = {0..3}
+        instantiate nodeset : set(node_id)
+
+        var s : nodeset
+
+        after init {
+            s := nodeset.emptyset;
+        } 
+        """
+        im, _ = compile_toplevel(mod)
+        prog = program_from_ivy(im)
+        pass #TODO

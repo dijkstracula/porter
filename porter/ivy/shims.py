@@ -61,22 +61,29 @@ def maybe_field_access_from_apply(im: imod.Module, app: terms.Apply) -> Optional
     # of the application matches `<record_sort_name>.<valid record field for that sort>`.
     if len(app.args) != 1:
         return None
-    varname = app.args[0]
+    maybe_self = app.args[0]
 
     t = app.relsym.rsplit(".", maxsplit=2)
     if len(t) != 2:
         return None
     maybe_sort_name, field_name = t
 
+    if maybe_sort_name not in im.sort_destructors:
+        return None
+
+    # At this point, we know that `maybe_sort_name` is indeed the name of a record.  The next thing to find out
+    # is whether `maybe_self` is the name of a field
+
+    # Some gnarly surgery: the sort of app is unfortunately going to not tell us that this is a Record,
+    # but rather that it's uninterpreted, so we have to determine that by whether its name is in the
+    # module's sort_destructors.
     porter_sort = app.sort()
-    if not isinstance(porter_sort, sorts.Record):
-        if maybe_sort_name not in im.sort_destructors:
+    if isinstance(porter_sort, sorts.Uninterpreted):
+        recordified = sorts.record_from_ivy(im, maybe_sort_name)
+        if field_name not in recordified.fields.keys():
             return None
-        # Some gnarly surgery: the sort of app is unfortunately going to not tell us that this is a Record,
-        # but rather that it's uninterpreted, so we have to determine that by whether its name is in the
-        # module's sort_destructors.
-        porter_sort = sorts.record_from_ivy(im, maybe_sort_name)
-    return terms.FieldAccess(app.ivy_node, varname, field_name)
+
+    return terms.FieldAccess(app.ivy_node, maybe_self, field_name)
 
 
 def expr_from_apply(im: imod.Module, app: ilog.Apply) -> terms.Expr:
@@ -207,7 +214,7 @@ def expr_from_ivy(im: imod.Module, expr) -> terms.Expr:
     if isinstance(expr, ilog.Var):
         return expr_from_var(im, expr)
 
-    # Application
+    # Application (and maybe field access)
     if isinstance(expr, ilog.Apply):
         return expr_from_apply(im, expr)
 
@@ -367,16 +374,22 @@ def action_from_ivy(im: imod.Module, act: iact.Action) -> terms.Action:
     raise Exception(f"TODO: {type(act)}")
 
 
-def action_kind_from_name(name: str) -> terms.ActionKind:
+def action_kind_from_name(im: imod.Module, name: str) -> terms.ActionKind:
     if name.startswith("ext:"):
-        return terms.ActionKind.EXPORTED
-    if name.startswith("imp"):
-        return terms.ActionKind.IMPORTED
+        name = name[len("ext:"):]
+        for ed in im.exports:
+            if ed.args[0].relname == name:
+                return terms.ActionKind.EXPORTED
+    elif name.startswith("imp__"):
+        name = name[len("imp__"):]
+        for ed in im.imports:
+            if ed.args[0].relname == name:
+                return terms.ActionKind.IMPORTED
     return terms.ActionKind.NORMAL
 
 
 def action_def_from_ivy(im: imod.Module, name: str, iaction: iact.Action) -> terms.ActionDefinition:
-    kind = action_kind_from_name(name)
+    kind = action_kind_from_name(im, name)
     assert (hasattr(iaction, "formal_params"))
     formal_params = [binding_from_ivy_const(im, p) for p in iaction.formal_params]
     formal_returns = [binding_from_ivy_const(im, p) for p in iaction.formal_returns]
