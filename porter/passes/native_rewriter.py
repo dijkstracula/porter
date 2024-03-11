@@ -1,4 +1,4 @@
-from porter.ast import Binding, sorts, terms
+from porter.ast import sorts, terms
 from porter.ast.sorts import Sort
 from porter.ast.sorts.visitor import Visitor as SortVisitor
 from porter.ast.terms.visitor import SortVisitorOverTerms

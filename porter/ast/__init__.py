@@ -47,3 +47,8 @@ class AST:
 
     def sort(self) -> Optional[sorts.Sort]:
         return self._sort
+
+    @property
+    def ivy_node(self):
+        return self._ivy_node
+

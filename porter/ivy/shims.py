@@ -18,6 +18,8 @@ from porter.passes.reinterpret_uninterps import InterpretUninterpretedVisitor
 
 from . import members
 
+from typing import Optional
+
 
 def compile_progtext(path: Path) -> iart.AnalysisGraph:
     logging.info(f"Compiling {path}")
@@ -52,6 +54,31 @@ def binding_from_ivy_const(im: imod.Module, c: ilog.Const) -> Binding[sorts.Sort
 
 # Expression conversion
 
+def maybe_field_access_from_apply(im: imod.Module, app: terms.Apply) -> Optional[terms.FieldAccess]:
+    # Unprincipled hack: field accesses on records are extracted as unary relations, so f.x
+    # is by default emitted as x(f).  Instead we can transform it into an actual FieldAccess node
+    # if the argument to the application is a Record, and the relsym
+    # of the application matches `<record_sort_name>.<valid record field for that sort>`.
+    if len(app.args) != 1:
+        return None
+    varname = app.args[0]
+
+    t = app.relsym.rsplit(".", maxsplit=2)
+    if len(t) != 2:
+        return None
+    maybe_sort_name, field_name = t
+
+    porter_sort = app.sort()
+    if not isinstance(porter_sort, sorts.Record):
+        if maybe_sort_name not in im.sort_destructors:
+            return None
+        # Some gnarly surgery: the sort of app is unfortunately going to not tell us that this is a Record,
+        # but rather that it's uninterpreted, so we have to determine that by whether its name is in the
+        # module's sort_destructors.
+        porter_sort = sorts.record_from_ivy(im, maybe_sort_name)
+    return terms.FieldAccess(app.ivy_node, varname, field_name)
+
+
 def expr_from_apply(im: imod.Module, app: ilog.Apply) -> terms.Expr:
     if app.func.name in ['+', "-", "<=", "<", ">", ">="]:
         lhs = expr_from_ivy(im, app.args[0])
@@ -60,7 +87,12 @@ def expr_from_apply(im: imod.Module, app: ilog.Apply) -> terms.Expr:
     func = app.func.name  # expr_from_ivy(im, app.args[0])
     args = [expr_from_ivy(im, a) for a in app.args]
 
-    return terms.Apply(app, func, args)
+    apply = terms.Apply(app, func, args)
+
+    maybe_field_access = maybe_field_access_from_apply(im, apply)
+    if maybe_field_access:
+        return maybe_field_access
+    return apply
 
 
 def expr_from_const(_im: imod.Module, c: ilog.Const) -> terms.Constant:
@@ -365,6 +397,8 @@ def function_def_from_ivy(im: imod.Module, defn: iast.Definition) -> terms.Funct
     # then we can simplify a lot of this.
 
     lhs = expr_from_ivy(im, defn.args[0])
+    if not isinstance(lhs, terms.Apply):
+        pass
     assert isinstance(lhs, terms.Apply)
 
     formal_params = []
@@ -419,7 +453,13 @@ def program_from_ivy(im: imod.Module) -> terms.Program:
         name = lf.formula.defines().name
         if name == "<":  # HACK
             continue
+        if name in im.sort_destructors:
+            continue
         defns.append(Binding(name, function_def_from_ivy(im, lf.formula)))
+
+    ###
+    # AST passes
+    ###
 
     # At this point, Records are going to marked as bound but typed as Uninterpreted. Do a pass to patch those up.
     to_remap: dict[str, sorts.Sort] = {name: sorts.record_from_ivy(im, name) for name in im.sort_destructors}
@@ -431,6 +471,10 @@ def program_from_ivy(im: imod.Module) -> terms.Program:
     reinterp.visit_program(prog)
     reinterp.visit_program_sorts(prog, reinterp.sort_visitor)
 
+    # Now that we have correctly resolved Record sorts, transform the AST from function application to
+    # field accesses where appropriate.
+
+    # Patch up native code blocks.
     native_rewriter.visit(prog)
 
     return prog

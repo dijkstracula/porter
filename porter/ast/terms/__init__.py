@@ -42,13 +42,6 @@ class Apply(Expr):
 
 
 @dataclass
-class Ite(Expr):
-    test: Expr
-    then: Expr
-    els: Expr
-
-
-@dataclass
 class Exists(Expr):
     # XXX: should this be a list of Vars instead?
     vars: list[Binding[Sort]]
@@ -60,6 +53,19 @@ class Forall(Expr):
     # XXX: should this be a list of Vars instead?
     vars: list[Binding[Sort]]
     expr: Expr
+
+
+@dataclass
+class FieldAccess(Expr):
+    struct: Expr
+    fname: str
+
+
+@dataclass
+class Ite(Expr):
+    test: Expr
+    then: Expr
+    els: Expr
 
 
 @dataclass

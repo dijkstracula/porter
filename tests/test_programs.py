@@ -96,7 +96,7 @@ class ShimTestsForPingPong(unittest.TestCase):
              ```
 
          The AST we get back from Ivy representes the LHS of these accesses as unary relations, so we have to do some
-         irritating mangling at extraction time to ensure we don't extract this as `dst(msg) = src(msg)`.
+         irritating mangling at extraction time to ensure we don't extract this as `msg_t__dst(msg) = msg_t__src(msg)`.
          """
         self.assertIn("msg.dst = msg.src", self.layout)
 

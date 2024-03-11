@@ -1,6 +1,6 @@
-from typing import Generic
+from typing import Generic, Union
 
-from porter.ast.sorts import Bool, BitVec, Enum, Function, Number, Uninterpreted
+from porter.ast.sorts import Bool, Number
 from porter.ast.sorts.visitor import Visitor as SortVisitor
 from porter.ast.terms import *
 
@@ -137,7 +137,13 @@ class Visitor(Generic[T]):
                 ret = self._finish_exists(node, expr)
                 self.scopes.pop()
                 return ret
-
+            case FieldAccess(_, struct, field_name):
+                bret = self._begin_field_access(node)
+                if bret is not None:
+                    return bret
+                struct_t = self.visit_expr(struct)
+                field_name_t = self._identifier(field_name)
+                return self._finish_field_access(node, struct_t, field_name_t)
             case Forall(_, vardecls, expr):
                 bret = self._begin_forall(node)
                 if bret is not None: return bret
@@ -204,6 +210,12 @@ class Visitor(Generic[T]):
 
     def _finish_exists(self, node: Exists, expr: T):
         raise UnimplementedASTNodeHandler(Exists)
+
+    def _begin_field_access(self, node: FieldAccess) -> Optional[T]:
+        pass
+
+    def _finish_field_access(self, node: FieldAccess, struct: T, field_name: T) -> T:
+        raise UnimplementedASTNodeHandler(FieldAccess)
 
     def _begin_forall(self, node: Forall) -> Optional[T]:
         pass
@@ -421,12 +433,191 @@ class Visitor(Generic[T]):
         raise UnimplementedASTNodeHandler(While)
 
 
+class ImmutVisitor(Visitor[AST]):
+    """ A base class for immutable visitors, that consume and produce a new tree.
+    Since we require stronger typing guarantees than each T being an AST, we fall back
+    to some dynamic typechecks here.
+    """
+
+    def _finish_action_def(self, name: str, defn: ActionDefinition, body):
+        assert isinstance(body, Action)
+        return ActionDefinition(defn.ivy_node, defn.kind, defn.formal_params, defn.formal_returns, body)
+
+    def _finish_function_def(self, name: str, defn: FunctionDefinition, body):
+        assert isinstance(body, Expr)
+        return FunctionDefinition(defn.ivy_node, defn.formal_params, body)
+
+    # Expressions
+
+    def _identifier(self, s: str) -> str:
+        return s
+
+    def _constant(self, c: Constant):
+        return c
+
+    def _var(self, v: Var):
+        return v
+
+    def _finish_apply(self, node: Apply, relsym_ret: str, args_ret: list[Expr]):
+        assert isinstance(args_ret, list)
+        assert all([isinstance(elem, Expr) for elem in args_ret])
+        ret = Apply(node.ivy_node, relsym_ret, args_ret)
+        ret._sort = node.sort()
+        return ret
+
+    def _finish_binop(self, node: BinOp, lhs: Expr, rhs: Expr) -> BinOp:
+        assert isinstance(lhs, Expr)
+        assert isinstance(rhs, Expr)
+        ret = BinOp(node.ivy_node, lhs, node.op, rhs)
+        ret._sort = node.sort()
+        return ret
+
+    def _finish_exists(self, node: Exists, expr: Expr) -> Exists:
+        assert isinstance(expr, Expr)
+        ret = Expr(node.ivy_node, expr)
+        ret._sort = node.sort()
+        return ret
+
+    def _finish_field_access(self, node: FieldAccess, struct: Expr, field_name: str):
+        assert isinstance(struct, Expr)
+        ret = FieldAccess(node.ivy_node, struct, field_name)
+        ret._sort = node.sort()
+        return ret
+
+    def _finish_forall(self, node: Forall, expr: Expr) -> Forall:
+        assert isinstance(expr, Expr)
+        ret = Forall(node.ivy_node, expr)
+        ret._sort = node.sort()
+        return ret
+
+    def _finish_ite(self, node: Ite, test: Expr, then: Expr, els: Expr) -> Ite:
+        assert isinstance(test, Expr)
+        assert isinstance(then, Expr)
+        assert isinstance(els, Expr)
+        ret = Ite(node.ivy_node, test, then, els)
+        ret._sort = node.sort()
+        return ret
+
+    def _finish_native_expr(self, node: NativeExpr, args: list[Expr]) -> NativeExpr:
+        assert isinstance(args, list)
+        assert all([isinstance(elem, Expr) for elem in args])
+        ret = NativeExpr(node.ivy_node, node.lang, node.fmt, args)
+        ret._sort = node.sort()
+        return ret
+
+    def _finish_some(self, node: Some, fmla: Expr) -> Some:
+        assert isinstance(fmla, Expr)
+        ret = Some(node.ivy_node, node.vars, fmla, node.strat)
+        ret._sort = node.sort()
+        return ret
+
+    def _finish_unop(self, node: UnOp, expr: Expr) -> UnOp:
+        assert isinstance(expr, Expr)
+        ret = UnOp(node.ivy_node, node.op, expr)
+        ret._sort = node.sort()
+        return ret
+
+    # Actions
+
+    def _finish_assert(self, act: Assert, pred: Expr) -> Assert:
+        ret = Assert(act.ivy_node, pred)
+        ret._sort = act.sort()
+        return ret
+
+    def _finish_assign(self, act: Assign, lhs: Expr, rhs: Expr) -> Assign:
+        ret = Assign(act.ivy_node, lhs, rhs)
+        ret._sort = act.sort()
+        return ret
+
+    def _finish_assume(self, act: Assume, pred: Expr) -> Assume:
+        ret = Assume(act.ivy_node, pred)
+        ret._sort = act.sort()
+        return ret
+
+    def _finish_call(self, act: Call, app: Apply) -> Call:
+        ret = Call(act.ivy_node, app)
+        ret._sort = act.sort()
+        return ret
+
+    def _finish_debug(self, act: Debug, args: list[Binding[Expr]]) -> Debug:
+        assert isinstance(act, Debug)
+        assert isinstance(args, list)
+        assert all([isinstance(x, Binding) for x in args])
+        ret = Debug(act.ivy_node, act.msg, act.args)
+        ret._sort = act.sort()
+        return ret
+
+    def _finish_ensures(self, act: Ensures, args: Expr) -> Debug:
+        assert isinstance(act, Ensures)
+        assert isinstance(args, Expr)
+        ret = Ensures(act.ivy_node, args)
+        ret._sort = act.sort()
+        return ret
+
+    def _finish_havok(self, act: Havok, modifies: list[Expr]):
+        assert isinstance(act, Havok)
+        assert isinstance(modifies, list)
+        assert all([isinstance(elem, Expr) for elem in modifies])
+        ret = Havok(act.ivy_node, modifies)
+        ret._sort = act.sort()
+        return ret
+
+    def _finish_if(self, act, test, then, els):
+        assert isinstance(act, If)
+        assert isinstance(test, Expr)
+        assert isinstance(then, Action)
+        # assert isinstance(els, Union)
+        ret = If(act.ivy_node, test, then, els)
+        ret._sort = act.sort()
+        return ret
+
+    def _finish_let(self, act: Let, scope):
+        assert isinstance(scope, Action)
+        ret = Let(act.ivy_node, act.vardecls, scope)
+        ret._sort = act.sort()
+        return ret
+
+    def _finish_logical_assign(self, act: LogicalAssign, assn):
+        assert isinstance(assn, Assign)
+        ret = LogicalAssign(act.ivy_node, act.vars, assn)
+        ret._sort = act.sort()
+        return ret
+
+    def _finish_native_action(self, act: NativeAct, args):
+        assert isinstance(args, list)
+        assert all([isinstance(elem, Expr) for elem in args])
+        ret = NativeAct(act.ivy_node, act.lang, act.fmt, args)
+        ret._sort = act.sort()
+        return ret
+
+    def _finish_requires(self, act: Requires, pred):
+        assert isinstance(pred, Expr)
+        ret = Requires(act.ivy_node, pred)
+        ret._sort = act.sort()
+        return ret
+
+    def _finish_sequence(self, act: Sequence, stmts):
+        assert isinstance(stmts, list)
+        assert all([isinstance(elem, Action) for elem in stmts])
+        ret = Sequence(act.ivy_node, stmts)
+        ret._sort = act.sort()
+        return ret
+
+    def _finish_while(self, act: While, test, decreases, do):
+        assert isinstance(test, Expr)
+        # assert isinstance(decreases, Optional[Expr])
+        assert isinstance(do, Action)
+        ret = While(act.ivy_node, test, decreases, do)
+        ret._sort = act.sort()
+        return ret
+
+
 class MutVisitor(Visitor[None]):
     " A base class for mutating visitors, where all operations are procedures and default to no-ops."
 
     # Expressions
 
-    def _identifier(self, c: Constant):
+    def _identifier(self, s: str) -> T:
         pass
 
     def _finish_apply(self, node: Apply, relsym_ret: None, args_ret: list[None]):
@@ -436,6 +627,9 @@ class MutVisitor(Visitor[None]):
         pass
 
     def _finish_exists(self, node: Exists, expr: None):
+        pass
+
+    def _finish_field_access(self, node: FieldAccess, struct: None, field_name: None):
         pass
 
     def _finish_forall(self, node: Forall, expr: None):

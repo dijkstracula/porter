@@ -75,7 +75,7 @@ class RecordTest(unittest.TestCase):
         sum_action = prog.actions[0].decl
 
         # `self` will be Uninterpreted out from Ivy unless we patch it correctly in program_from_ivy().
-        assert isinstance(sum_action.formal_params[0].decl, sorts.Record)
+        self.assertIsInstance(sum_action.formal_params[0].decl, sorts.Record)
 
-        #extractor = java.extract("test_field_gen", prog)
+        # extractor = java.extract("test_field_gen", prog)
         pass

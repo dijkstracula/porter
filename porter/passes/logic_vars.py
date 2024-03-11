@@ -30,13 +30,13 @@ class BindVar(Visitor[terms.Expr]):
     def _constant(self, c: terms.Constant) -> terms.Constant:
         return c
 
-    def _var(self, v: terms.Var) -> terms.Var:
+    def _var(self, v: terms.Var) -> terms.Constant:
         if v.rep == self.bound_var:
-            return terms.Constant(v._ivy_node, self.bound_var)
+            return terms.Constant(v.ivy_node, self.bound_var)
         return v
 
     def _finish_binop(self, node: terms.BinOp, lhs_ret: terms.Expr, rhs_ret: terms.Expr) -> terms.BinOp:
-        return terms.BinOp(node._ivy_node, lhs_ret, node.op, rhs_ret)
+        return terms.BinOp(node.ivy_node, lhs_ret, node.op, rhs_ret)
 
     def _finish_apply(self, node: terms.Apply, _unused: terms.Expr, args_ret: list[terms.Expr]) -> terms.Apply:
-        return terms.Apply(node._ivy_node, node.relsym, args_ret)
+        return terms.Apply(node.ivy_node, node.relsym, args_ret)

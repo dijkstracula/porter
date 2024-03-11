@@ -1,5 +1,5 @@
 from porter.ast import Binding, sorts, terms
-from porter.ast.terms.visitor import Visitor
+from porter.ast.terms.visitor import Visitor, ImmutVisitor
 
 from .test_programs import compile_and_parse, unit_tests
 
@@ -24,6 +24,9 @@ class ExprCounter(Visitor[None]):
         self.n_expr_nodes += 1
 
     def _finish_exists(self, node: terms.Exists, vs: list[Binding[None]], expr: None):
+        self.n_expr_nodes += 1
+
+    def _finish_field_access(self, node: terms.FieldAccess, struct: None, name: None):
         self.n_expr_nodes += 1
 
     def _finish_forall(self, node: terms.Forall, vs: list[Binding[None]], expr: None):
@@ -109,3 +112,20 @@ def test_visit_program(fn):
     ast = compile_and_parse(fn)
     visitor = ExprCounter()
     visitor.visit_program(ast)  # Just ensure we don't throw an unimplemented node exception
+
+
+@pytest.mark.parametrize("fn", unit_tests)
+def test_immut_visitor(fn):
+    ast = compile_and_parse(fn)
+
+    class NoOpImmutVisitor(ImmutVisitor):
+        pass
+
+    visitor = NoOpImmutVisitor()
+
+    visitor.visit_program(ast)
+
+    assert visitor.actions == ast.actions
+    assert visitor.functions == ast.functions
+    assert visitor.inits == ast.inits
+    assert visitor.individuals == ast.individuals
