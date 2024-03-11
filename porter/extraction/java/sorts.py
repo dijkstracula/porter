@@ -197,4 +197,5 @@ class ArbitraryGenerator(SortVisitor[Doc]):
 
     def uninterpreted(self, name: str) -> Doc:
         # raise Exception(f"Sort {name} is marked as uninterpreted; cannot infer a finite bound")
+        # TODO: this needs to be smarter... something like a stateful "gradually increasing range" generator??
         return self.arbitrary_name + Text(f".fromIvySort(new beguine.sorts.Number({-100}, {100})")

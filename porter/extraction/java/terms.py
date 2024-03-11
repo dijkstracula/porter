@@ -54,6 +54,11 @@ class Extractor(TermVisitor[Doc]):
 
     def imported_action(self, name: str, defn: terms.ActionDefinition):
         assert defn.kind == terms.ActionKind.IMPORTED
+
+        # This should always be true...
+        if name.startswith("imp__"):
+            name = name[len("imp__"):]
+
         ret = Text("debug(") + quoted(name)
         for arg in defn.formal_params:
             ret = ret + Text(", ") + self._identifier(arg.name)

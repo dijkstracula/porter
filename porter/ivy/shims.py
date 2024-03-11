@@ -376,15 +376,18 @@ def action_from_ivy(im: imod.Module, act: iact.Action) -> terms.Action:
 
 def action_kind_from_name(im: imod.Module, name: str) -> terms.ActionKind:
     if name.startswith("ext:"):
+        # We want to consider the action exported if the current module is exporting it.
         name = name[len("ext:"):]
         for ed in im.exports:
             if ed.args[0].relname == name:
                 return terms.ActionKind.EXPORTED
     elif name.startswith("imp__"):
+        # We want to consider the action imported if the current module is _not_ importing it (eg. from another module).
         name = name[len("imp__"):]
         for ed in im.imports:
             if ed.args[0].relname == name:
-                return terms.ActionKind.IMPORTED
+                return terms.ActionKind.NORMAL
+        return terms.ActionKind.IMPORTED
     return terms.ActionKind.NORMAL
 
 
