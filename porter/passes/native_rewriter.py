@@ -12,13 +12,13 @@ FileLine = tuple[str, int]
 
 def visit(prog: terms.Program):
     remap = {
-        ("collections.ivy", 923): "HashSet<`0`>",  # TODO: this is wrong
-        ("collections.ivy", 939): "`0`.add(`1`)",
-        ("collections.ivy", 945): "`0`.contains(`1`)",
-        ("collections.ivy", 952): "TODO",
-        ("collections.ivy", 971): "TODO",
-        ("collections.ivy", 988): "TODO",
-        ("collections.ivy", 1000): "TODO",
+        ("collections.ivy", 924): "HashSet<`0`>",  # TODO: this is wrong
+        ("collections.ivy", 940): "`0`.add(`1`)",
+        ("collections.ivy", 946): "`0`.contains(`1`)",
+        ("collections.ivy", 953): "TODO (vector::erase)",
+        ("collections.ivy", 972): "TODO (vector::lub)",
+        ("collections.ivy", 989): "TODO (vector::begin)",
+        ("collections.ivy", 1001): "TODO (vector::next)",
         ("collections_impl.ivy", 6): "ArrayList<`0`>",
         ("collections_impl.ivy", 17): """
             `2`.ensureCapacity(`0`);
@@ -70,7 +70,10 @@ class NativeRewriter(SortVisitorOverTerms):
         def _finish_function(self, node: sorts.Function, domain: list[Sort], range: Sort) -> Sort:
             return sorts.Function(domain, range)
 
-        def native(self, loc: Position, fmt: str, args: list[str]):
+        def numeric(self, name: str, lo: Optional[int], hi: Optional[int]):
+            return sorts.Number(name, lo, hi)
+
+        def _finish_native(self, loc: Position, fmt: str, args: list[Sort]):
             pos = loc.origin()
             file = pos.filename.name
             line = pos.line
@@ -78,13 +81,11 @@ class NativeRewriter(SortVisitorOverTerms):
             if (file, line) in self.mapping:
                 remapped = self.mapping[(file, line)]
                 fmt = remapped
+                args = [self.visit_sort(arg) for arg in args]
                 return sorts.Native(loc, fmt, args)
             else:
                 raise Exception(f"No Native remapping for {file}:{line}")
             # return sorts.Native(loc, fmt, args)
-
-        def numeric(self, name: str, lo: Optional[int], hi: Optional[int]):
-            return sorts.Number(name, lo, hi)
 
         def _finish_record(self, rec: sorts.Record, fields: dict[str, Sort]):
             return sorts.Record(rec.name, fields)

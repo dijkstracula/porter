@@ -4,11 +4,34 @@ from porter.ast import sorts
 
 from porter.ast.sorts.visitor import Visitor as SortVisitor
 
+from porter.ivy import Position
+
 from porter.pp import Doc, Text, Nil, utils
 from porter.pp.formatter import interpolate_native
 from porter.pp.utils import space
 
 from typing import Optional
+
+class Generator(SortVisitor[Doc]):
+    #XXX: is this deprecated?  We have an ArbitraryGenerator
+
+    def bool(self):
+        return Text("BooleanGenerator")
+
+    def bv(self, name: str, width: int):
+        return Text(f"LongGenerator({width})")
+
+    def enum(self, name: str, discriminants: list[str]):
+        return Text(name)
+
+    def _finish_function(self, node: sorts.Function, domain: list[Doc], range: Doc):
+        raise Exception("Cannot randomly generate function!")
+
+    def numeric(self, name: str, lo: Optional[int], hi: Optional[int]):
+        return Text("Integer")
+
+    def uninterpreted(self, name: str):
+        return Text("Integer")
 
 
 class DefaultValue(SortVisitor[Doc]):
@@ -27,8 +50,8 @@ class DefaultValue(SortVisitor[Doc]):
     def enum(self, name: str, discriminants: list[str]):
         return Text(canonicalize_identifier(discriminants[0]))
 
-    def native(self, lang: str, fmt: str, args: list[str]):
-        return Text("new ") + interpolate_native(fmt, [Text(arg) for arg in args]) + Text("()")
+    def _finish_native(self, lang: str, fmt: str, args: list[Doc]):
+        return Text("new ") + interpolate_native(fmt, args) + Text("()")
 
     def numeric(self, name: str, lo: Optional[int], hi: Optional[int]):
         if lo:
@@ -64,8 +87,8 @@ class BoxedSort(SortVisitor[Doc]):
     def _finish_function(self, node: sorts.Function, domain: list[Doc], range: Doc):
         return Text("beguine.Maps.Map") + Text(str(len(domain)))  # TODO: generics
 
-    def native(self, lang: str, fmt: str, args: list[str]):
-        return interpolate_native(fmt, [Text(arg) for arg in args])
+    def _finish_native(self, lang: str, fmt: str, args: list[Doc]):
+        return interpolate_native(fmt, args)
 
     def numeric(self, name: str, lo: Optional[int], hi: Optional[int]):
         return Text("Integer")
@@ -103,8 +126,8 @@ class UnboxedSort(SortVisitor[Doc]):
         cls = Text("beguine.Maps.Map") + Text(str(len(node.domain)))
         return cls + utils.enclosed("<", utils.join(type_args, ", "), ">")
 
-    def native(self, lang: str, fmt: str, args: list[str]):
-        return interpolate_native(fmt, [Text(arg) for arg in args])
+    def _finish_native(self, lang: str, fmt: str, args: list[Doc]):
+        return interpolate_native(fmt, args)
 
     def numeric(self, name: str, lo: Optional[int], hi: Optional[int]):
         return Text("int")
@@ -139,11 +162,11 @@ class SortDeclaration(SortVisitor[Doc]):
         cls = Text("beguine.Maps.Map") + Text(str(len(node.domain)))
         return cls + utils.enclosed("<", utils.join(type_args, ", "), ">")
 
-    def native(self, lang: str, fmt: str, args: list[str]):
-        return Nil()  # TODO: should this be a typedef or something?
-
     def numeric(self, name: str, lo: Optional[int], hi: Optional[int]):
         return Nil()
+
+    def _finish_native(self, lang: str, fmt: str, args: list[Doc]):
+        return Nil()  # TODO: should this be a typedef or something?
 
     def _finish_record(self, rec: sorts.Record, fields: dict[str, Doc]):
         recname = canonicalize_identifier(rec.name)
@@ -194,6 +217,9 @@ class ArbitraryGenerator(SortVisitor[Doc]):
 
     def _begin_record(self, rec: sorts.Record) -> Optional[Doc]:
         return Text(record_metaclass_name(rec.name))
+
+    def _finish_native(self, loc: Position, fmt: str, args: list[Doc]):
+        return Text("TODO (native arbitrary)" + str(loc))
 
     def uninterpreted(self, name: str) -> Doc:
         # raise Exception(f"Sort {name} is marked as uninterpreted; cannot infer a finite bound")

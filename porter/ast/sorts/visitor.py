@@ -34,7 +34,12 @@ class Visitor(Generic[T]):
                 range = self.visit_sort(range)
                 return self._finish_function(sort, domain, range)
             case Native(loc, fmt, args):
-                return self.native(loc, fmt, args)
+                bret = self._begin_native(sort)
+                if bret:
+                    return bret
+
+                args_as_t = [self.visit_sort(arg) for arg in args]
+                return self._finish_native(loc, fmt, args_as_t)
             case Number(name, lo, hi):
                 return self.numeric(name, lo, hi)
             case Record(_name, fields):
@@ -64,11 +69,14 @@ class Visitor(Generic[T]):
     def _finish_function(self, node: Function, domain: list[T], range: T) -> T:
         raise UnimplementedASTNodeHandler(Function)
 
-    def native(self, loc: Position, fmt: str, args: list[str]):
-        raise UnimplementedASTNodeHandler(Native)
-
     def numeric(self, name: str, lo: Optional[int], hi: Optional[int]):
         raise UnimplementedASTNodeHandler(Number)
+
+    def _begin_native(self, nat: Native) -> Optional[T]:
+        pass
+
+    def _finish_native(self, loc: Position, fmt: str, args: list[T]):
+        raise UnimplementedASTNodeHandler(Native)
 
     def _begin_record(self, rec: Record) -> Optional[T]:
         pass
@@ -99,11 +107,11 @@ class MutVisitor(Visitor[None]):
     def enum(self, name: str, discriminants: tuple[str, ...]):
         pass
 
-    def native(self, lang: Position, fmt: str, args: list[str]):
-        pass
-
     def numeric(self, name: str, lo: Optional[int], hi: Optional[int]):
         pass
+
+    def _finish_native(self, loc: Position, fmt: str, args: list[T]):
+        raise UnimplementedASTNodeHandler(Native)
 
     def _finish_record(self, name: str, fields: dict[str, None]) -> None:
         pass

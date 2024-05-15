@@ -29,11 +29,11 @@ class InterpretUninterpretedVisitor(SortVisitor[Sort]):
     def _finish_function(self, node: sorts.Function, domain: list[Sort], range: Sort) -> Sort:
         return sorts.Function(domain, range)
 
-    def native(self, loc: Position, fmt: str, args: list[str]):
-        return sorts.Native(loc, fmt, args)
-
     def numeric(self, name: str, lo: Optional[int], hi: Optional[int]):
         return sorts.Number(name, lo, hi)
+
+    def _finish_native(self, loc: Position, fmt: str, args: list[str]):
+        return sorts.Native(loc, fmt, args)
 
     def _finish_record(self, rec: sorts.Record, fields: dict[str, Sort]):
         return sorts.Record(rec.name, fields)

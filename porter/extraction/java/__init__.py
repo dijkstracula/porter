@@ -9,15 +9,13 @@ def extract(isolate_name: str, prog: astterms.Program) -> Doc:
     extractor = Extractor()
     extractor.visit_program(prog)
 
-    unboxed = UnboxedSort()
-
     sort_declarer = SortDeclaration()
     sorts = [sort_declarer.visit_sort(s) for name, s in extractor.sorts.items()]
 
     var_docs = []
     for binding in extractor.individuals:
         var = extractor._identifier(binding.name)
-        sort = unboxed.visit_sort(binding.decl)
+        sort = UnboxedSort().visit_sort(binding.decl)
         var_docs.append(sort + space + var + semi)
 
     action_docs = [b.decl for b in extractor.actions]

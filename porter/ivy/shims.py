@@ -42,13 +42,13 @@ def handle_isolate(path: Path) -> terms.Program:
 
 def binding_from_ivy_var(im: imod.Module, v: ilog.Var) -> Binding[sorts.Sort]:
     name = v.rep
-    sort = sorts.from_ivy(v.sort)
+    sort = sorts.from_ivy(im, v.sort)
     return Binding(name, sort)
 
 
 def binding_from_ivy_const(im: imod.Module, c: ilog.Const) -> Binding[sorts.Sort]:
     name = c.name
-    sort = sorts.from_ivy(c.sort)
+    sort = sorts.from_ivy(im, c.sort)
     return Binding(name, sort)
 
 
@@ -449,11 +449,11 @@ def program_from_ivy(im: imod.Module) -> terms.Program:
                 width = int(im.sig.interp[name][3:-1])
                 porter_sort = sorts.BitVec(width)
             else:
-                porter_sort = sorts.from_ivy(im.sig.interp[name])
+                porter_sort = sorts.from_ivy(im, im.sig.interp[name])
         elif name in im.sort_destructors:
             porter_sort = sorts.record_from_ivy(im, name)
         else:
-            porter_sort = sorts.from_ivy(ivy_sort)
+            porter_sort = sorts.from_ivy(im, ivy_sort)
         porter_sorts[name] = porter_sort
     vardecls = [binding_from_ivy_const(im, sym) for sym in members(im)]
     inits = [action_from_ivy(im, a) for a in im.initial_actions]

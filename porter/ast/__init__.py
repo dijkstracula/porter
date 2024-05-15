@@ -3,6 +3,7 @@ from dataclasses import dataclass, field, KW_ONLY
 from porter.ivy import Position
 
 from ivy import ivy_actions as iact
+from ivy import ivy_module as imod
 from ivy import ivy_utils as iu
 
 from porter.ast import sorts
@@ -33,7 +34,11 @@ class AST:
             # raise Exception(f"Missing sort for {self._ivy_node}")
             self._sort = None
         else:
-            self._sort = sorts.from_ivy(self._ivy_node)
+            # XXX: Deeply unfortunate that we've lost an explicit handle
+            # to the Ivy global module.  Hopefully pulling it in like this
+            # is safe...
+            with imod.Module() as im:
+                self._sort = sorts.from_ivy(im, self._ivy_node)
 
     def pos(self) -> Optional[Position]:
         if self._ivy_node is None:

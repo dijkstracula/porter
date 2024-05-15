@@ -88,8 +88,8 @@ available to your virtualenv's Python.
 
 ## Running
 
-```
-$ poetry run
+```commandline
+poetry run porter tests/programs/001_hello.ivy
 ```
 
 ## Development

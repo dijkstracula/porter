@@ -7,7 +7,6 @@ from pathlib import Path
 from .ivy import config, shims
 
 from porter import extraction
-from porter import passes
 
 sys.setrecursionlimit(1000000)  # booyah
 config.init_parameters()
@@ -24,5 +23,4 @@ def extract(isolate):
     extracted = extraction.extract_java(prog)
 
     print(extracted)
-
 

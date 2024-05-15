@@ -29,7 +29,7 @@ class Bool(Sort):
 class Native(Sort):
     posn: Position
     fmt: str  # TODO: in Ivy this is a NativeCode
-    args: list  # TODO: of what?
+    args: list[Sort]
 
 
 @dataclass(frozen=True)
@@ -110,7 +110,7 @@ def record_from_ivy(im: imod.Module, name: str) -> Record:
     for c in im.sort_destructors[name]:
         field_name = c.name.rsplit(".", 1)[-1]
         # field_name = strip_prefixes([name], ".", c.name)
-        field_sort = from_ivy(c.sort)
+        field_sort = from_ivy(im, c.sort)
         assert isinstance(field_sort, Function)
         fields[field_name] = field_sort.range
 
@@ -126,7 +126,7 @@ def record_from_ivy(im: imod.Module, name: str) -> Record:
     return Record(name, fields)
 
 
-def from_ivy(sort) -> Sort:
+def from_ivy(im: imod.Module, sort) -> Sort:
     if hasattr(sort, "name"):
         name = sort.name
         if name == "bool":
@@ -141,19 +141,33 @@ def from_ivy(sort) -> Sort:
             discriminants = tuple([str(x) for x in sort.extension])
             return Enum(name, discriminants)
     if hasattr(sort, "sort"):
-        return from_ivy(sort.sort)
+        return from_ivy(im, sort.sort)
+    if hasattr(sort, "rep"):
+        if sort.rep in im.sig.interp:
+            sort_or_name = im.sig.interp[sort.rep]
+            if isinstance(sort_or_name, str):
+                assert sort_or_name.startswith("bv[")
+                width = int(sort_or_name[3:-1])
+                return BitVec(width)
+            else:
+                return from_ivy(im, sort_or_name)
+        else:
+            return Uninterpreted(sort.rep) # XXX ???
     if isinstance(sort, ilog.FunctionSort):
-        domain = [from_ivy(s) for s in sort.domain]
-        ret = from_ivy(sort.range)
+        domain = [from_ivy(im, s) for s in sort.domain]
+        ret = from_ivy(im, sort.range)
         return Function(domain, ret)
     if isinstance(sort, ilog.RangeSort):
         return range_from_ivy(sort)
     if isinstance(sort, iast.NativeType):
         native_code = sort.args[0]
         assert isinstance(native_code, iast.NativeCode)
+
+        # Slightly annoying: NativeTypes' args are Atoms.
         native_blob = native_code.code.strip()
-        args = [str(arg) for arg in sort.args[1:]]
+        args = [from_ivy(im, arg) for arg in sort.args[1:]]
         return Native(Position.from_ivy(sort.lineno), native_blob, args)
     if isinstance(sort, ilog.TopSort):
         return Top()
+    import pdb; pdb.set_trace()
     raise Exception(f"TODO {type(sort)}")
