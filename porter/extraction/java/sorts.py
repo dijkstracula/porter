@@ -12,27 +12,6 @@ from porter.pp.utils import space
 
 from typing import Optional
 
-class Generator(SortVisitor[Doc]):
-    #XXX: is this deprecated?  We have an ArbitraryGenerator
-
-    def bool(self):
-        return Text("BooleanGenerator")
-
-    def bv(self, name: str, width: int):
-        return Text(f"LongGenerator({width})")
-
-    def enum(self, name: str, discriminants: list[str]):
-        return Text(name)
-
-    def _finish_function(self, node: sorts.Function, domain: list[Doc], range: Doc):
-        raise Exception("Cannot randomly generate function!")
-
-    def numeric(self, name: str, lo: Optional[int], hi: Optional[int]):
-        return Text("Integer")
-
-    def uninterpreted(self, name: str):
-        return Text("Integer")
-
 
 class DefaultValue(SortVisitor[Doc]):
     "A sensible initializer value for values of a given sort."
@@ -193,14 +172,8 @@ class ArbitraryGenerator(SortVisitor[Doc]):
 
     arbitrary_name: Doc
 
-    node_id_max: int
-
     def __init__(self, arbitrary_name: str):
         self.arbitrary_name = Text(arbitrary_name)
-
-        # Disgusting hack - Ivy reads this in from the CLI
-        # https://github.com/dijkstracula/porter/issues/5
-        self.node_id_max = 3
 
     def bv(self, width: int) -> Doc:
         return self.arbitrary_name + Text(f".fromIvySort(new beguine.sorts.BitVec({width}))")
@@ -209,10 +182,7 @@ class ArbitraryGenerator(SortVisitor[Doc]):
         if lo is None:
             raise Exception(f"Couldn't infer a lower bound for {name}")
         if hi is None:
-            if name.endswith("id"):
-                hi = self.node_id_max
-            else:
-                raise Exception(f"Couldn't infer an upper bound for {name}")
+            raise Exception(f"Couldn't infer an upper bound for {name}")
         return self.arbitrary_name + Text(f".fromIvySort(new beguine.sorts.Number({lo}, {hi}))")
 
     def _begin_record(self, rec: sorts.Record) -> Optional[Doc]:

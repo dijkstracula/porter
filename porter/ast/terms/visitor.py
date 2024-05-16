@@ -1,5 +1,6 @@
-from typing import Generic, Union
+from typing import Generic
 
+from porter.ast import AST
 from porter.ast.sorts import Bool, Number
 from porter.ast.sorts.visitor import Visitor as SortVisitor
 from porter.ast.terms import *
@@ -704,19 +705,31 @@ class SortVisitorOverTerms(MutVisitor):
     def __init__(self, sv: SortVisitor[Sort]):
         self.sort_visitor = sv
 
+    def patch_sort(self, a: AST):
+        a._sort = self.sort_visitor.visit_sort(a.sort())
+
+    def _constant(self, c: Constant) -> T:
+        self.patch_sort(c)
+
+    def _var(self, v: Var) -> T:
+        self.patch_sort(v)
+
+    ##
+
+    def _finish_binop(self, node: BinOp, lhs_ret: None, rhs_ret: None):
+        self.patch_sort(node)
+
     def _finish_apply(self, node: Apply, relsym_ret: None, args_ret: list[None]):
         for arg in node.args:
             s = arg.sort()
             if s:
-                arg._sort = self.sort_visitor.visit_sort(s)
+                self.patch_sort(arg)
 
     def _finish_exists(self, node: Exists, expr: None):
-        for binding in node.vars:
-            binding.decl = self.sort_visitor.visit_sort(binding.decl)
+        node.vars = [Binding(b.name, self.sort_visitor.visit_sort(b.decl)) for b in node.vars]
 
-    def _finish_forall(self, node: Exists, expr: None):
-        for binding in node.vars:
-            binding.decl = self.sort_visitor.visit_sort(binding.decl)
+    def _finish_forall(self, node: Forall, expr: None):
+        node.vars = [Binding(b.name, self.sort_visitor.visit_sort(b.decl)) for b in node.vars]
 
     def _finish_let(self, act: Let, scope: None):
         act.vardecls = [Binding(b.name, self.sort_visitor.visit_sort(b.decl)) for b in act.vardecls]

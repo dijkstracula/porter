@@ -153,12 +153,31 @@ class Extractor(TermVisitor[Doc]):
         # the sort's range, if it has one!
         match node.op:
             case "and":
-                op = "&&"
+                return lhs_ret + utils.padded("&&") + rhs_ret
             case "or":
+                return lhs_ret + utils.padded("||") + rhs_ret
                 op = "||"
-            case _:
-                op = node.op
-        return lhs_ret + utils.padded(op) + rhs_ret
+            case "+" | "-" | "*" | "/":
+                sort = node.sort()
+                if isinstance(sort, sorts.Number):
+                    doc = lhs_ret + utils.padded(node.op) + rhs_ret
+                    saturated = doc
+                    if sort.lo_range is not None:
+                        # doc < lo ? lo : doc
+                        lo = Text(str(sort.lo_range))
+                        saturated = utils.enclosed("(", doc + utils.padded("<") + lo, ")") + \
+                                    utils.padded("?") + lo + utils.padded(":") + saturated
+                    if sort.hi_range is not None:
+                        # doc > hi ? hi : doc
+                        hi = Text(str(sort.hi_range))
+                        saturated = utils.enclosed("(", doc + utils.padded(">") + hi, ")") + \
+                                    utils.padded("?") + hi + utils.padded(":") + \
+                                    utils.enclosed("(", saturated, ")")
+                    return saturated
+                else:
+                    return lhs_ret + utils.padded(node.op) + rhs_ret
+            case op:
+                return lhs_ret + utils.padded(op) + rhs_ret
 
     def _finish_exists(self, node: terms.Exists, expr: Doc):
         bound_vars = bounds_for_exists(node)
@@ -277,6 +296,6 @@ class Extractor(TermVisitor[Doc]):
 
         if isinstance(defn.body, terms.FieldAccess):
             pass
-            #body = defn.body
+            # body = defn.body
         body = Text("return ") + body + Text(";")
         return sig + space + block(body)

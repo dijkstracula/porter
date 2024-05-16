@@ -9,6 +9,8 @@ from porter.ivy import Position
 
 class InterpretUninterpretedVisitor(SortVisitor[Sort]):
     "Walks a sort and replaces all annotated Uninterpreted sorts with another one."
+    # TODO: This does more than what the class name suggests, so we should rename it.
+
     mapping: dict[str, Sort]
 
     def __init__(self, mapping: dict[str, Sort]):
@@ -30,6 +32,8 @@ class InterpretUninterpretedVisitor(SortVisitor[Sort]):
         return sorts.Function(domain, range)
 
     def numeric(self, name: str, lo: Optional[int], hi: Optional[int]):
+        if name in self.mapping:
+            return self.mapping[name]
         return sorts.Number(name, lo, hi)
 
     def _finish_native(self, loc: Position, fmt: str, args: list[str]):

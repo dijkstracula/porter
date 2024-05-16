@@ -481,6 +481,12 @@ def program_from_ivy(im: imod.Module) -> terms.Program:
     to_remap: dict[str, sorts.Sort] = {name: sorts.record_from_ivy(im, name) for name in im.sort_destructors}
     to_remap.update({name: sort for name, sort in porter_sorts.items() if not isinstance(sort, sorts.Uninterpreted)})
 
+    # Irritating hack because we do not have yet a mechanism to set eg. client_id.max on the CLI just yet
+    for name, sort in to_remap.items():
+        if name.endswith("id"):
+            if isinstance(sort, sorts.Number) and not sort.hi_range:
+                to_remap[name] = sorts.Number(sort.sort_name, sort.lo_range, 3)
+
     prog = terms.Program(im, porter_sorts, vardecls, inits, actions, defns, conjs)
 
     reinterp = SortVisitorOverTerms(InterpretUninterpretedVisitor(to_remap))

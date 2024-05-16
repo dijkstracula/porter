@@ -69,6 +69,17 @@ class JavaExtractionTests(unittest.TestCase):
         extracted = Naive(80).format(self.extractor.visit_expr(expr))
         self.assertEqual(extracted.layout(), large_num + " + " + large_num)
 
+    def test_bounded_binop(self):
+        expr = terms.BinOp(None,
+                           terms.Constant(None, str(42)),
+                           "+",
+                           terms.Constant(None, str(1)))
+        expr._sort = sorts.Number("my_int", 5, 10)
+        extracted = Naive(80).format(self.extractor.visit_expr(expr))
+        self.assertIn("42 + 1 > 10", extracted.layout())
+        self.assertIn("42 + 1 < 5", extracted.layout())
+        pass
+
     def test_ite(self):
         test = terms.BinOp(None,
                            terms.Constant(None, "1"),
@@ -153,4 +164,3 @@ class JavaExtractionTests(unittest.TestCase):
             "x = 42;",
             "y = true;",
         ]))
-
