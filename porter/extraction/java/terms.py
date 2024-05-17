@@ -19,36 +19,34 @@ class Extractor(TermVisitor[Doc]):
 
         if len(decl.formal_returns) > 1:
             raise Exception("TODO: I don't know how to handle tuples in return types yet")
-
-        # TODO: unfortunately void functions need to produce Void, since Java doesn't distinguish between void
-        # and j.l.Void.  Perhaps we should have a transformation pass that implicitly adds a formal return
-        # so we don't have to special-case it at extraction time?
         if len(decl.formal_returns) == 0:
-            ret = Text("Void")
+            ret = Text("Unit")
         else:
             ret = unboxed.visit_sort(decl.formal_returns[0].decl)
 
-        param_docs = [unboxed.visit_sort(b.decl) + space + self._identifier(b.name) for b in decl.formal_params]
+        param_docs = [self._identifier(b.name) + Text(": ") + unboxed.visit_sort(b.decl) for b in decl.formal_params]
         params = utils.enclosed("(", utils.join(param_docs, ", "), ")")
 
-        return Text("public") + space + ret + space + self._identifier(name) + params
+        return Text("def") + space + self._identifier(name) + params + Text(" : ") + ret
 
     def action_body(self, defn: terms.ActionDefinition):
         body = self.visit_action(defn.body)
         rets = defn.formal_returns
-        if len(rets) == 0:
-            # return body  # This is a void function.
-            ret = Binding("__void_ret", sorts.Top())
-        elif len(rets) == 1:
-            ret = rets[0]
-        else:
-            raise Exception("TODO: multiple returns")
 
-        if ret.name not in [b.name for b in defn.formal_params]:
-            retdecl = self.vardecl(ret) + semi + Line()
-        else:
-            retdecl = Nil()
-        retstmt = Text("return ") + self._identifier(ret.name) + semi
+        ret: Optional[Binding[Sort]] = None
+        if len(rets) == 1:
+            ret = rets[0]
+        elif len(rets) > 1:
+            raise Exception("TODO: multiple returns???")
+
+        retdecl = Nil()
+        if ret is not None:
+            if ret.name not in [b.name for b in defn.formal_params]:
+                retdecl = self.vardecl(ret) + semi + Line()
+
+        retstmt = Nil()
+        if ret is not None:
+            retstmt = self._identifier(ret.name)
 
         return retdecl + body + Line() + retstmt
 
@@ -69,22 +67,22 @@ class Extractor(TermVisitor[Doc]):
     def function_sig(self, name: str, decl: terms.FunctionDefinition) -> Doc:
         unboxed = UnboxedSort()
 
-        param_docs = [unboxed.visit_sort(b.decl) + space + self._identifier(b.name) for b in decl.formal_params]
+        param_docs = [self._identifier(b.name) + Text(": ") + unboxed.visit_sort(b.decl) for b in decl.formal_params]
         params = utils.enclosed("(", utils.join(param_docs, ", "), ")")
 
         ret_sort = decl.body.sort()
         assert ret_sort
         ret = unboxed.visit_sort(ret_sort)
 
-        # This could be public but it's nice to just see visually what's an Action vs a Function.
-        return Text("protected") + space + ret + space + self._identifier(name) + params
+        return Text("def") + space + self._identifier(name) + params + Text(" : ") + ret
 
     def export_action(self, action: Binding[terms.ActionDefinition]) -> Doc:
         args = [ArbitraryGenerator("a").visit_sort(b.decl) for b in action.decl.formal_params]
-        return Text("exported(") + \
+        ret = "Unit" if len(action.decl.formal_returns) == 0 else action.decl.formal_returns[0]
+        return Text(f"exported[{ret}](") + \
             quoted(action.name) + utils.soft_comma + \
-            Text("this::") + self._identifier(action.name) + utils.soft_comma + \
-            utils.join(args, utils.soft_comma) + \
+            self._identifier(action.name) + \
+            utils.join([utils.soft_comma + arg for arg in args]) + \
             Text(");")
 
     def add_conjecture(self, conj: Binding[terms.Expr]) -> Doc:
@@ -98,26 +96,24 @@ class Extractor(TermVisitor[Doc]):
             Text("() => ") + fmla + \
             Text(");")
 
-    def cstr(self,
-             isolate_name: str,
-             exports: list[Binding[terms.ActionDefinition]],
-             conjs: list[Binding[terms.Expr]],
-             inits: list[Doc]):
+    def initializers(self,
+                     exports: list[Binding[terms.ActionDefinition]],
+                     conjs: list[Binding[terms.Expr]],
+                     inits: list[Doc]):
         exportdocs: list[Doc] = [self.export_action(e) for e in exports]
         conjdocs: list[Doc] = [self.add_conjecture(conj) for conj in conjs]
 
-        body = [Text("super();") + Line()] + \
-               exportdocs + [utils.soft_line] + \
-               conjdocs + [utils.soft_line] + \
-               inits
-        return Text(f"public {isolate_name}(Arbitrary a)") + space + block(utils.join(body, "\n"))
+        body: list[Doc] = exportdocs + [utils.soft_line] + \
+                          conjdocs + [utils.soft_line] + \
+                          inits
+        return utils.join(body, "\n")
 
     def vardecl(self, binding: Binding[Sort]):
         sort = UnboxedSort().visit_sort(binding.decl)
         var = self._identifier(binding.name)
         init = DefaultValue().visit_sort(binding.decl)
 
-        return sort + space + var + Text(" = ") + init
+        return Text("var ") + var + Text(" : ") + sort + Text(" = ") + init
 
     # Expressions
 
@@ -143,9 +139,6 @@ class Extractor(TermVisitor[Doc]):
                 return ident
 
     def _finish_apply(self, node: terms.Apply, relsym_ret: Doc, args_ret: list[Doc]):
-        if isinstance(node.sort(), sorts.Function):
-            # https://github.com/dijkstracula/porter/issues/
-            return relsym_ret + utils.enclosed(".get(", utils.join(args_ret, ", "), ")")
         return relsym_ret + utils.enclosed("(", utils.join(args_ret, ", "), ")")
 
     def _finish_binop(self, node: terms.BinOp, lhs_ret: Doc, rhs_ret: Doc):
@@ -284,9 +277,9 @@ class Extractor(TermVisitor[Doc]):
         sig = self.action_sig(name, defn)
         match defn.kind:
             case terms.ActionKind.IMPORTED:
-                return sig + space + block(self.imported_action(name, defn))
+                return sig + Text(" = ") + block(self.imported_action(name, defn))
             case _:
-                return sig + space + block(self.action_body(defn))
+                return sig + Text(" = ") + block(self.action_body(defn))
 
     def _finish_function_def(self,
                              name: str,

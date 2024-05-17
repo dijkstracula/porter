@@ -19,7 +19,7 @@ class AppIteration(VarBounds):
     fixed.  So, we'd lift this into: `AppIter(link(...), [Binding('Y', 'y'])`. Presumably
     we will extract this into something akin to: `link.iterate().filter((X, TMP_Y) -> TMP_Y == y)`.
 
-    Example: `r(X, f(X))` should be, I guess, `r.iterate().filter((X, TMP_Y) -> f(X) == TMP_Y)`?
+    Example: `r(X, f(X))` should be, I guess, `r.iterate().filter((X, TMP_Y) -> TMP_Y == f(X))`?
 
     Example: `r(x, y)` is a point query and doesn't require iteration at all.
 

@@ -62,6 +62,24 @@ def test_accord():
     _layout = formatted.layout()
 
 
+class ShimTestsForLinChain(unittest.TestCase):
+    """ A bunch of specific things we want to check on a particular non-trivial Ivy program.
+    Linchain has a bunch of specification state relations that has to be thought through well.
+    """
+    prog: terms.Program
+    formatted: Doc
+    layout: str
+
+    def setUp(self) -> None:
+        fn = os.path.join(progdir, '003_linchain.ivy')
+        self.prog = shims.handle_isolate(Path(fn))
+        self.formatted = Naive(80).format(java.extract("ShimTestsForLinChain", self.prog))
+        self.layout = self.formatted.layout()
+
+    def test_relations(self):
+        "im.sig.interp has some interpretations of uninterpreted sorts.  Make sure we slurp those up correctly."
+        pass
+
 class ShimTestsForPingPong(unittest.TestCase):
     """ A bunch of specific things we want to check on a particular non-trivial Ivy program.
         pingpong is probably the smallest nontrivial program in the test suite: it's got

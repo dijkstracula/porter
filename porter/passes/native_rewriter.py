@@ -19,7 +19,7 @@ def visit(prog: terms.Program):
         ("collections.ivy", 972): "TODO (vector::lub)",
         ("collections.ivy", 989): "TODO (vector::begin)",
         ("collections.ivy", 1001): "TODO (vector::next)",
-        ("collections_impl.ivy", 6): "ArrayList<`0`>",
+        ("collections_impl.ivy", 6): "List[`0`]",
         ("collections_impl.ivy", 17): """
             `2`.ensureCapacity(`0`);
             for (int _internal_i = 0; i < `0`; _internal_i++) {

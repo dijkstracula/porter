@@ -6,7 +6,7 @@ from dataclasses import dataclass
 
 class Doc:
     def __add__(self, other: "Doc") -> "Doc":
-        "Sugar for horizontal concatenation."
+        """Sugar for horizontal concatenation."""
         # TODO: simpling at each stage is super expensive but
         # for debugging purposes it's preferable for now.
         return simpl(Concat(self, other), recurse=False)

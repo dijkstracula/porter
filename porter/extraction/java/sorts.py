@@ -29,6 +29,9 @@ class DefaultValue(SortVisitor[Doc]):
     def enum(self, name: str, discriminants: list[str]):
         return Text(canonicalize_identifier(discriminants[0]))
 
+    def _finish_function(self, node: sorts.Function, domain: list[Doc], range: Doc) -> Doc:
+        return UnboxedSort().visit_sort(node) + Text("()")
+
     def _finish_native(self, lang: str, fmt: str, args: list[Doc]):
         return Text("new ") + interpolate_native(fmt, args) + Text("()")
 
@@ -70,7 +73,7 @@ class BoxedSort(SortVisitor[Doc]):
         return interpolate_native(fmt, args)
 
     def numeric(self, name: str, lo: Optional[int], hi: Optional[int]):
-        return Text("Integer")
+        return Text("Int")
 
     def _finish_record(self, rec: sorts.Record, fields: dict[str, Doc]):
         return Text(canonicalize_identifier(rec.name))
@@ -92,8 +95,8 @@ class UnboxedSort(SortVisitor[Doc]):
         if width > 64:
             raise Exception("BV too wide")
         if width > 8:
-            return Text("long")
-        return Text("byte")
+            return Text("Long")
+        return Text("Byte")
 
     def enum(self, name: str, discriminants: list[str]):
         return Text(canonicalize_identifier(name))
@@ -103,22 +106,22 @@ class UnboxedSort(SortVisitor[Doc]):
         type_args = [boxed.visit_sort(s) for s in node.domain + [node.range]]
 
         cls = Text("beguine.Maps.Map") + Text(str(len(node.domain)))
-        return cls + utils.enclosed("<", utils.join(type_args, ", "), ">")
+        return cls + utils.enclosed("[", utils.join(type_args, ", "), "]")
 
     def _finish_native(self, lang: str, fmt: str, args: list[Doc]):
         return interpolate_native(fmt, args)
 
     def numeric(self, name: str, lo: Optional[int], hi: Optional[int]):
-        return Text("int")
+        return Text("Integer")
 
     def _finish_record(self, rec: sorts.Record, fields: dict[str, Doc]):
         return Text(canonicalize_identifier(rec.name))
 
     def top(self):
-        return Text("Void")
+        return Text("Unit")
 
     def uninterpreted(self, name: str):
-        return Text("int")
+        return Text("Int")
 
 
 class SortDeclaration(SortVisitor[Doc]):
@@ -131,32 +134,43 @@ class SortDeclaration(SortVisitor[Doc]):
         return Nil()
 
     def enum(self, name: str, discriminants: list[str]):
-        discs = utils.join([Text(canonicalize_identifier(s)) for s in discriminants], utils.soft_comma)
-        return Text("public enum ") + Text(canonicalize_identifier(name)) + space + block(discs)
+        name = canonicalize_identifier(name)
+        typ = Text(f"type {name} = Value")
+        discs = Text("val ") + utils.join([Text(canonicalize_identifier(s)) for s in discriminants],
+                                          utils.soft_comma) + Text(" = Value")
+        imp = Text(f"import {name}._")
+
+        return Text("object") + utils.padded(Text(canonicalize_identifier(name))) + Text("extends Enumeration ") + \
+            utils.enclosed("{", typ + Line() + discs, "}") + Line() + imp
 
     def _finish_function(self, node: sorts.Function, domain: list[Doc], range: Doc):
         boxed = BoxedSort()
         type_args = [boxed.visit_sort(s) for s in node.domain + [node.range]]
 
         cls = Text("beguine.Maps.Map") + Text(str(len(node.domain)))
-        return cls + utils.enclosed("<", utils.join(type_args, ", "), ">")
+        return cls + utils.enclosed("[", utils.join(type_args, ", "), "]")
 
     def numeric(self, name: str, lo: Optional[int], hi: Optional[int]):
-        return Nil()
+        name = canonicalize_identifier(name)
+        lo_str = "Int.MinValue" if lo is None else f"{lo}"
+        hi_str = "Int.MaxValue" if hi is None else f"{hi}"
+        return Text(f"val {name} = beguine.sorts.Number({lo_str}, {hi_str})")
 
     def _finish_native(self, lang: str, fmt: str, args: list[Doc]):
         return Nil()  # TODO: should this be a typedef or something?
 
     def _finish_record(self, rec: sorts.Record, fields: dict[str, Doc]):
         recname = canonicalize_identifier(rec.name)
-        field_docs = [Text("public") + space +
-                      UnboxedSort().visit_sort(s) + space +
-                      Text(canonicalize_identifier(name)) + Text(";") for name, s in rec.fields.items()]
-        clazz_decl = Text("public class " + recname) + space + block(utils.join(field_docs, "\n"))
+        field_docs = [Text("var") + space +
+                      Text(canonicalize_identifier(name)) + \
+                      Text(": ") + UnboxedSort().visit_sort(s) + \
+                      Text(" = ") + DefaultValue().visit_sort(s)
+                      for name, s in rec.fields.items()]
+        clazz_decl = Text("class " + recname) + utils.soft_line + utils.enclosed("{", utils.join(field_docs, "\n"), "}")
 
         # TODO: look at how something like shapeless might help with this.
-        metaclass_decl = Text("public class ") + Text(record_metaclass_name(recname)) + \
-                         Text(" extends sorts.Record<") + Text(recname) + Text("> {}")
+        metaclass_decl = Text("class ") + Text(record_metaclass_name(recname)) + \
+                         Text(" extends sorts.Record[") + Text(recname) + Text("] {}")
 
         return clazz_decl + Line() + metaclass_decl + Line()
 

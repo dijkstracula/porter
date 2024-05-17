@@ -439,22 +439,35 @@ def function_def_from_ivy(im: imod.Module, defn: iast.Definition) -> terms.Funct
     return ret
 
 
+def sort_from_interped(im: imod.Module, name: str, ivy_sort) -> sorts.Sort:
+    interped = im.sig.interp[name]
+    if isinstance(interped, str):
+        # TODO: This is duplicated in sorts.from_ivy().
+        if interped == "bool":
+            return sorts.Bool()
+        if interped == "int":
+            return sorts.Number.int_sort()
+        if interped == "nat":
+            return sorts.Number.nat_sort()
+        if interped.startswith("bv["):
+            width = int(im.sig.interp[name][3:-1])
+            return sorts.BitVec(width)
+        if interped in im.sig.interp:
+            return sort_from_interped(im, im.sig.interp[name], ivy_sort)
+    return sorts.from_ivy(im, interped)
+
+
 def program_from_ivy(im: imod.Module) -> terms.Program:
     porter_sorts = {}
     for name, ivy_sort in list(im.sig.sorts.items()) + list(im.native_types.items()):
         if name in im.sig.interp:
-            if isinstance(im.sig.interp[name], str):
-                if not im.sig.interp[name].startswith("bv["):
-                    continue
-                width = int(im.sig.interp[name][3:-1])
-                porter_sort = sorts.BitVec(width)
-            else:
-                porter_sort = sorts.from_ivy(im, im.sig.interp[name])
+            porter_sort = sort_from_interped(im, name, ivy_sort)
         elif name in im.sort_destructors:
             porter_sort = sorts.record_from_ivy(im, name)
         else:
             porter_sort = sorts.from_ivy(im, ivy_sort)
         porter_sorts[name] = porter_sort
+
     vardecls = [binding_from_ivy_const(im, sym) for sym in members(im)]
     inits = [action_from_ivy(im, a) for a in im.initial_actions]
 
