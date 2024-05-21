@@ -1,7 +1,7 @@
 from porter.ivy import shims
 from porter.ast import Binding, terms, sorts
 from porter.pp.formatter import Naive
-from porter.extraction.java import terms as jterms
+from porter.extraction.scala import terms as jterms
 
 from . import compile_annotated_expr
 
@@ -23,7 +23,7 @@ class JavaExtractionTests(unittest.TestCase):
 
         void_procedure = terms.ActionDefinition(None, terms.ActionKind.NORMAL, [], [], body)
         extracted = Naive(80).format(self.extractor.action_sig(name, void_procedure))
-        self.assertEqual(extracted.layout(), "public Void some_action()")
+        self.assertEqual(extracted.layout(), "def some_action() : Unit")
 
     def test_action_sig_void(self):
         name = "some_action"
@@ -36,7 +36,7 @@ class JavaExtractionTests(unittest.TestCase):
             [],
             body)
         extracted = Naive(80).format(self.extractor.action_sig(name, void_procedure))
-        self.assertEqual(extracted.layout(), "public Void some_action(int a)")
+        self.assertEqual(extracted.layout(), "def some_action(a: Int) : Unit")
 
     def test_action_sig(self):
         name = "some_action"
@@ -49,7 +49,7 @@ class JavaExtractionTests(unittest.TestCase):
             [Binding("ret", sorts.Number.nat_sort())],
             body)
         extracted = Naive(80).format(self.extractor.action_sig(name, void_procedure))
-        self.assertEqual(extracted.layout(), "public int some_action(int a)")
+        self.assertEqual(extracted.layout(), "def some_action(a: Int) : Int")
 
     def test_app(self):
         expr = terms.Apply(None,
@@ -118,7 +118,7 @@ class JavaExtractionTests(unittest.TestCase):
         layout = Naive(80).format(extracted).layout()
         self.assertEqual(layout, "\n".join([
             "if (1 < 2) {",
-            "    f();",
+            "    f()",
             "}"
         ]))
 
@@ -132,9 +132,9 @@ class JavaExtractionTests(unittest.TestCase):
         layout = Naive(80).format(extracted).layout()
         self.assertEqual(layout, "\n".join([
             "if (1 < 2) {",
-            "    f();",
+            "    f()",
             "} else {",
-            "    g();",
+            "    g()",
             "}"
         ]))
 
@@ -145,8 +145,8 @@ class JavaExtractionTests(unittest.TestCase):
         extracted = self.extractor.visit_action(stmt)
         layout = Naive(80).format(extracted).layout()
         self.assertEqual(layout, "\n".join([
-            "int x = 0;",
-            "x = 42;"
+            "var x : Int = 0",
+            "x = 42"
         ]))
 
     def test_let_multi_binding(self):
@@ -159,8 +159,8 @@ class JavaExtractionTests(unittest.TestCase):
         extracted = self.extractor.visit_action(stmt)
         layout = Naive(80).format(extracted).layout()
         self.assertEqual(layout, "\n".join([
-            "int x = 0;",
-            "boolean y = false;",
-            "x = 42;",
-            "y = true;",
+            "var x : Int = 0",
+            "var y : Boolean = false",
+            "x = 42",
+            "y = true",
         ]))

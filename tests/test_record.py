@@ -1,7 +1,7 @@
 from porter.ast import sorts
 from porter.ivy import shims
 from porter.pp.formatter import Naive
-from porter.extraction import java
+from porter.extraction import scala
 
 from . import compile_toplevel
 
@@ -77,5 +77,5 @@ class RecordTest(unittest.TestCase):
         # `self` will be Uninterpreted out from Ivy unless we patch it correctly in program_from_ivy().
         self.assertIsInstance(sum_action.formal_params[0].decl, sorts.Record)
 
-        # extractor = java.extract("test_field_gen", prog)
+        # extractor = scala.extract("test_field_gen", prog)
         pass

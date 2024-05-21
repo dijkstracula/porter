@@ -13,19 +13,19 @@ FileLine = tuple[str, int]
 def visit(prog: terms.Program):
     remap = {
         ("collections.ivy", 924): "HashSet<`0`>",  # TODO: this is wrong
-        ("collections.ivy", 940): "`0`.add(`1`)",
+        ("collections.ivy", 939): "`0` :+ `1`",
         ("collections.ivy", 946): "`0`.contains(`1`)",
         ("collections.ivy", 953): "TODO (vector::erase)",
         ("collections.ivy", 972): "TODO (vector::lub)",
         ("collections.ivy", 989): "TODO (vector::begin)",
         ("collections.ivy", 1001): "TODO (vector::next)",
-        ("collections_impl.ivy", 6): "List[`0`]",
+        ("collections_impl.ivy", 6): "mutable.ArraySeq[`0`]",
         ("collections_impl.ivy", 17): """
             `2`.ensureCapacity(`0`);
             for (int _internal_i = 0; i < `0`; _internal_i++) {
                 `2`.set(_internal_i, `1`);
             }""",
-        ("collections_impl.ivy", 25): "/* */",
+        ("collections_impl.ivy", 25): "a = List.empty",
         ("collections_impl.ivy", 37): """
             if (0 <= `1` && `1` < `0`.size()) {
                 `2` = `0`.get(`1`);
@@ -36,14 +36,14 @@ def visit(prog: terms.Program):
             for (int _internal_i = _old_size; i < `1`; _internal_i++) {
                 `0`.set(_internal_i, `2`);
             }""",
-        ("collections_impl.ivy", 75): "`0`.add(`1`)",
+        ("collections_impl.ivy", 75): "`0` = `0`.add(`1`)",
         ("tcp_serdes.ivy", 506): "HashMap<Integer, Object>",
         ("tcp_serdes.ivy", 508): "TODO",
         ("tcp_serdes.ivy", 510): "TODO"
     }
-    nr = NativeRewriter("java", remap)
+    nr = NativeRewriter("scala", remap)
     nr.visit_program(prog)
-    nr.visit_program_sorts(prog, NativeRewriter.NativeSortRewriter("java", remap))
+    nr.visit_program_sorts(prog, NativeRewriter.NativeSortRewriter("scala", remap))
 
 
 class NativeRewriter(SortVisitorOverTerms):

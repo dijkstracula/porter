@@ -33,7 +33,8 @@ class DefaultValue(SortVisitor[Doc]):
         return UnboxedSort().visit_sort(node) + Text("()")
 
     def _finish_native(self, lang: str, fmt: str, args: list[Doc]):
-        return Text("new ") + interpolate_native(fmt, args) + Text("()")
+        # return Text("new ") + interpolate_native(fmt, args) + Text("()")
+        return Text("null")  # XXX: Assumes native types are reference types, is this ok?
 
     def numeric(self, name: str, lo: Optional[int], hi: Optional[int]):
         if lo:
@@ -89,7 +90,7 @@ class UnboxedSort(SortVisitor[Doc]):
     "A value type for a given sort."
 
     def bool(self):
-        return Text("boolean")
+        return Text("Boolean")
 
     def bv(self, width: int):
         if width > 64:
@@ -101,9 +102,8 @@ class UnboxedSort(SortVisitor[Doc]):
     def enum(self, name: str, discriminants: list[str]):
         return Text(canonicalize_identifier(name))
 
-    def _finish_function(self, node: sorts.Function, _domain: list[Doc], _range: Doc):
-        boxed = BoxedSort()
-        type_args = [boxed.visit_sort(s) for s in node.domain + [node.range]]
+    def _begin_function(self, node: sorts.Function) -> Optional[Doc]:
+        type_args = [self.visit_sort(s) for s in node.domain + [node.range]]
 
         cls = Text("beguine.Maps.Map") + Text(str(len(node.domain)))
         return cls + utils.enclosed("[", utils.join(type_args, ", "), "]")
@@ -112,7 +112,7 @@ class UnboxedSort(SortVisitor[Doc]):
         return interpolate_native(fmt, args)
 
     def numeric(self, name: str, lo: Optional[int], hi: Optional[int]):
-        return Text("Integer")
+        return Text("Int")
 
     def _finish_record(self, rec: sorts.Record, fields: dict[str, Doc]):
         return Text(canonicalize_identifier(rec.name))

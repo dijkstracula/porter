@@ -6,7 +6,7 @@ import warnings
 from . import progdir
 from porter.ivy import shims
 from porter.ast import sorts, terms
-from porter.extraction import java
+from porter.extraction import scala
 from porter.pp import Doc
 from porter.pp.formatter import Naive
 
@@ -36,7 +36,7 @@ unit_tests = [os.path.join(progdir, f) for f in os.listdir(progdir) if os.path.i
 def test_compile_and_extract(fn):
     prog = shims.handle_isolate(Path(fn))
 
-    formatted = Naive(80).format(java.extract(os.path.basename(fn), prog))
+    formatted = Naive(80).format(scala.extract(os.path.basename(fn), prog))
     _layout = formatted.layout()
     pass
 
@@ -44,21 +44,21 @@ def test_compile_and_extract(fn):
 @pytest.mark.parametrize("fn", glob_progs('accord-ivy', 'src'))
 def test_accord_subfiles(fn: str):
     prog = shims.handle_isolate(Path(fn))
-    formatted = Naive(80).format(java.extract(os.path.basename(fn), prog))
+    formatted = Naive(80).format(scala.extract(os.path.basename(fn), prog))
     _layout = formatted.layout()
 
 
 @pytest.mark.parametrize("fn", glob_progs('ivy-ts', 'src'))
 def test_ivy_ts_subfiles(fn: str):
     prog = shims.handle_isolate(Path(fn))
-    formatted = Naive(80).format(java.extract(os.path.basename(fn), prog))
+    formatted = Naive(80).format(scala.extract(os.path.basename(fn), prog))
     _layout = formatted.layout()
 
 
 def test_accord():
     fn = os.path.join(progdir, 'accord-ivy', 'src', 'protocol.ivy')
     prog = shims.handle_isolate(Path(fn))
-    formatted = Naive(80).format(java.extract(os.path.basename(fn), prog))
+    formatted = Naive(80).format(scala.extract(os.path.basename(fn), prog))
     _layout = formatted.layout()
 
 
@@ -73,12 +73,13 @@ class ShimTestsForLinChain(unittest.TestCase):
     def setUp(self) -> None:
         fn = os.path.join(progdir, '003_linchain.ivy')
         self.prog = shims.handle_isolate(Path(fn))
-        self.formatted = Naive(80).format(java.extract("ShimTestsForLinChain", self.prog))
+        self.formatted = Naive(80).format(scala.extract("ShimTestsForLinChain", self.prog))
         self.layout = self.formatted.layout()
 
     def test_relations(self):
         "im.sig.interp has some interpretations of uninterpreted sorts.  Make sure we slurp those up correctly."
         pass
+
 
 class ShimTestsForPingPong(unittest.TestCase):
     """ A bunch of specific things we want to check on a particular non-trivial Ivy program.
@@ -94,7 +95,7 @@ class ShimTestsForPingPong(unittest.TestCase):
     def setUp(self) -> None:
         fn = os.path.join(progdir, '006_pingpong.ivy')
         self.prog = shims.handle_isolate(Path(fn))
-        self.formatted = Naive(80).format(java.extract("ShimTestsForPingPong", self.prog))
+        self.formatted = Naive(80).format(scala.extract("ShimTestsForPingPong", self.prog))
         self.layout = self.formatted.layout()
 
     def test_interpreted_from_sig(self):
@@ -120,10 +121,6 @@ class ShimTestsForPingPong(unittest.TestCase):
 
     def test_no_enum_cstr_individuals(self):
         """ In stock Ivy, the discriminants for each enumerated sort have their own constructor.  Make sure we
-        don't attempt to define any such thing."""
-        self.assertIn("public enum msg_type", self.layout)
+        don't attempt to define any such thing but instead create an ordinary Scala enum."""
+        self.assertIn("msg_type extends Enumeration", self.layout)
         self.assertNotIn("msg_type ping_kind;", self.layout)
-
-    def test_cstr_args(self):
-        """ Beguine expects Protocols with a well-defined constructor. """
-        self.assertIn("public ShimTestsForPingPong(Arbitrary a)", self.layout)

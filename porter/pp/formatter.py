@@ -20,7 +20,8 @@ def interpolate_native(fmt: str, args: list[Doc]):
         m = re.search(pat, line[curr_begin:])
         while m:
             idx = int(m.group(1))
-            text = line[curr_begin: curr_begin + m.start()].strip()
+            text = line[curr_begin: curr_begin + m.start()]
+            text = re.sub(r"\s+", " ", text)
             ret = ret + Text(text) + args[idx]
 
             curr_begin = curr_begin + m.end()

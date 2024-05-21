@@ -42,7 +42,7 @@ class Extractor(TermVisitor[Doc]):
         retdecl = Nil()
         if ret is not None:
             if ret.name not in [b.name for b in defn.formal_params]:
-                retdecl = self.vardecl(ret) + semi + Line()
+                retdecl = self.vardecl(ret) + Line()
 
         retstmt = Nil()
         if ret is not None:
@@ -83,7 +83,7 @@ class Extractor(TermVisitor[Doc]):
             quoted(action.name) + utils.soft_comma + \
             self._identifier(action.name) + \
             utils.join([utils.soft_comma + arg for arg in args]) + \
-            Text(");")
+            Text(")")
 
     def add_conjecture(self, conj: Binding[terms.Expr]) -> Doc:
         fmla = self.visit_expr(conj.decl)
@@ -94,7 +94,7 @@ class Extractor(TermVisitor[Doc]):
             quoted(lineno.filename.name) + Text(", ") + \
             Text(str(lineno.line)) + Text(",") + utils.soft_line + \
             Text("() => ") + fmla + \
-            Text(");")
+            Text(")")
 
     def initializers(self,
                      exports: list[Binding[terms.ActionDefinition]],
@@ -210,19 +210,19 @@ class Extractor(TermVisitor[Doc]):
         return Text("assertThat(") + \
             quoted(lineno.filename.name) + Text(", ") + \
             Text(str(lineno.line)) + Text(", ") + \
-            pred + Text(");")
+            pred + Text(")")
 
     def _finish_assign(self, act: terms.Assign, lhs: Doc, rhs: Doc):
-        return lhs + utils.padded("=") + rhs + semi
+        return lhs + utils.padded("=") + rhs
 
     def _finish_assume(self, act: terms.Assume, pred: Doc):
-        return Text("this.assume(") + pred + Text(");")
+        return Text("this.assume(") + pred + Text(")")
 
     def _finish_call(self, act: terms.Call, app: Doc):
-        return app + semi  # XXX: yes??
+        return app  # XXX: yes??
 
     def _finish_debug(self, act: terms.Debug, args: list[Doc]):
-        return Text("debug(") + Text(act.msg) + Text(");")
+        return Text("debug(") + Text(act.msg) + Text(")")
 
     def _finish_ensures(self, act: terms.Ensures, pred: Doc):
         return Text("this.ensures(") + pred + Text(")")
@@ -241,9 +241,7 @@ class Extractor(TermVisitor[Doc]):
         return ret
 
     def _finish_let(self, act: terms.Let, scope: Doc):
-        var_docs = []
-        for binding in act.vardecls:
-            var_docs.append(self.vardecl(binding) + semi)
+        var_docs = [self.vardecl(b) for b in act.vardecls]
         return utils.join(var_docs, Line()) + Line() + scope
 
     def _finish_logical_assign(self, act: terms.LogicalAssign, assn: Doc):
@@ -290,5 +288,4 @@ class Extractor(TermVisitor[Doc]):
         if isinstance(defn.body, terms.FieldAccess):
             pass
             # body = defn.body
-        body = Text("return ") + body + Text(";")
         return sig + space + block(body)
