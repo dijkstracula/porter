@@ -314,12 +314,14 @@ class Visitor(Generic[T]):
                 ret = self._finish_let(node, scope)
                 self.scopes.pop()
                 return ret
-            case LogicalAssign(_, _vardecls, assign):
+            case LogicalAssign(_, relsym, args, assignee):
                 bret = self._begin_logical_assign(node)
                 if bret is not None: return bret
 
-                assign = self.visit_action(assign)
-                return self._finish_logical_assign(node, assign)
+                relsym = self._identifier(relsym)
+                args = [self.visit_expr(a) for a in args]
+                assignee = self.visit_expr(assignee)
+                return self._finish_logical_assign(node, relsym, args, assignee)
             case NativeAct(_, _lang, _fmt, args):
                 bret = self._begin_native_action(node)
                 if bret is not None: return bret
@@ -406,7 +408,7 @@ class Visitor(Generic[T]):
     def _begin_logical_assign(self, act: LogicalAssign) -> Optional[T]:
         return None
 
-    def _finish_logical_assign(self, act: LogicalAssign, assn: T) -> T:
+    def _finish_logical_assign(self, act: LogicalAssign, relsym: T, args: list[T], assn: T) -> T:
         raise UnimplementedASTNodeHandler(LogicalAssign)
 
     def _begin_native_action(self, act: NativeAct) -> Optional[T]:
@@ -578,9 +580,9 @@ class ImmutVisitor(Visitor[AST]):
         ret._sort = act.sort()
         return ret
 
-    def _finish_logical_assign(self, act: LogicalAssign, assn):
-        assert isinstance(assn, Assign)
-        ret = LogicalAssign(act.ivy_node, act.vars, assn)
+    def _finish_logical_assign(self, act: LogicalAssign, relsym, args, assn) -> T:
+        assert isinstance(assn, Expr)
+        ret = LogicalAssign(act.ivy_node, act.relsym, act.args, act.assign)
         ret._sort = act.sort()
         return ret
 
@@ -677,7 +679,7 @@ class MutVisitor(Visitor[None]):
     def _finish_let(self, act: Let, scope: None):
         pass
 
-    def _finish_logical_assign(self, act: LogicalAssign, assn: None):
+    def _finish_logical_assign(self, act: LogicalAssign, relsym: None, args: list[None], assn: None):
         pass
 
     def _finish_native_action(self, act: NativeAct, args: list[None]):

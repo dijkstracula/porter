@@ -1,0 +1,11 @@
+#lang ivy1.8
+
+include numbers
+
+# Here's a process that is very hard to generate valid inputs for.
+process p = {
+    export action doit(val: nat)
+    implement doit {
+        require val = 42;
+    }
+}

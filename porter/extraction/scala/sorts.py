@@ -105,7 +105,7 @@ class UnboxedSort(SortVisitor[Doc]):
     def _begin_function(self, node: sorts.Function) -> Optional[Doc]:
         type_args = [self.visit_sort(s) for s in node.domain + [node.range]]
 
-        cls = Text("beguine.Maps.Map") + Text(str(len(node.domain)))
+        cls = Text("Maps.Map") + Text(str(len(node.domain)))
         return cls + utils.enclosed("[", utils.join(type_args, ", "), "]")
 
     def _finish_native(self, lang: str, fmt: str, args: list[Doc]):
@@ -181,6 +181,39 @@ class SortDeclaration(SortVisitor[Doc]):
         return Nil()
 
 
+class BeguineKind(SortVisitor[Doc]):
+    "Produces the class name for the sort metaclass (eg. sorts.Numeric(0, 3)). (TODO: this vs arbitrarygen?)"
+
+    def bool(self):
+        return Text("sorts.Boolean()")
+
+    def bv(self, width: int):
+        return Text(f"sorts.BitVec({width})")
+
+    def enum(self, name: str, discriminants: list[str]):
+        return Text(f"sorts.Enum[{name}]()")
+
+    def _finish_function(self, node: sorts.Function, domain: list[Doc], range: Doc):
+        return Text("TODO")
+
+    def numeric(self, name: str, lo: Optional[int], hi: Optional[int]):
+        lo_str = "Int.MinValue" if lo is None else f"{lo}"
+        hi_str = "Int.MaxValue" if hi is None else f"{hi}"
+        return Text(f"sorts.Number({lo_str}, {hi_str})")
+
+    def _finish_native(self, lang: str, fmt: str, args: list[Doc]):
+        return Text("TODO (native sort kind)")  # TODO: should this be a typedef or something?
+
+    def _finish_record(self, rec: sorts.Record, fields: dict[str, Doc]):
+        return Text("TODO (record sort kind)")
+
+    def top(self):
+        return Text("sorts.Top()")
+
+    def uninterpreted(self, name: str):
+        return Text("sorts.Uninterpreted()")
+
+
 class ArbitraryGenerator(SortVisitor[Doc]):
     "Produces an expression to invoke an Arbitrary to generate a value of a given Sort."
 
@@ -189,15 +222,15 @@ class ArbitraryGenerator(SortVisitor[Doc]):
     def __init__(self, arbitrary_name: str):
         self.arbitrary_name = Text(arbitrary_name)
 
+    def bool(self) -> Doc:
+        return self.arbitrary_name + Text(f".bool()")
+
     def bv(self, width: int) -> Doc:
-        return self.arbitrary_name + Text(f".fromIvySort(new beguine.sorts.BitVec({width}))")
+        return self.arbitrary_name + Text(f".bitvec(sorts.BitVec({width}))")
 
     def numeric(self, name: str, lo: Optional[int], hi: Optional[int]):
-        if lo is None:
-            raise Exception(f"Couldn't infer a lower bound for {name}")
-        if hi is None:
-            raise Exception(f"Couldn't infer an upper bound for {name}")
-        return self.arbitrary_name + Text(f".fromIvySort(new beguine.sorts.Number({lo}, {hi}))")
+        # XXX:
+        return self.arbitrary_name + Text(f".numeric({name})")
 
     def _begin_record(self, rec: sorts.Record) -> Optional[Doc]:
         return Text(record_metaclass_name(rec.name))
@@ -208,4 +241,4 @@ class ArbitraryGenerator(SortVisitor[Doc]):
     def uninterpreted(self, name: str) -> Doc:
         # raise Exception(f"Sort {name} is marked as uninterpreted; cannot infer a finite bound")
         # TODO: this needs to be smarter... something like a stateful "gradually increasing range" generator??
-        return self.arbitrary_name + Text(f".fromIvySort(new beguine.sorts.Number({-100}, {100})")
+        return self.arbitrary_name + Text(f".numeric(sorts.Number({-100}, {100})")

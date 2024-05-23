@@ -115,18 +115,19 @@ class Assign(Action):
 
 @dataclass
 class LogicalAssign(Action):
-    vars: list[Var]
-    assign: Assign
+    relsym: str
+    vars: list[Expr]
+    assign: Expr
 
     @staticmethod
     def maybe_from_assign(a: Assign) -> Optional["LogicalAssign"]:
         """ If the given assignment involves an application involving a logical variable, lift it into
         its corresponding LogicalAssignment."""
         match a.lhs:
-            case Apply(ivy, _relsym, args):
-                lvars = [a for a in args if isinstance(a, Var)]
-                if len(lvars) > 0:
-                    return LogicalAssign(ivy, lvars, a)
+            case Apply(ivy, relsym, args):
+                if not any([a for a in args if isinstance(a, Var)]):
+                    return None
+                return LogicalAssign(ivy, relsym, args, a.rhs)
         return None
 
 

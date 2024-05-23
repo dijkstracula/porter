@@ -63,7 +63,7 @@ def maybe_field_access_from_apply(im: imod.Module, app: terms.Apply) -> Optional
         return None
     maybe_self = app.args[0]
 
-    t = app.relsym.rsplit(".", maxsplit=2)
+    t = app.relsym.rsplit(".", maxsplit=1)
     if len(t) != 2:
         return None
     maybe_sort_name, field_name = t

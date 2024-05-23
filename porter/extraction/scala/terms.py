@@ -77,12 +77,15 @@ class Extractor(TermVisitor[Doc]):
         return Text("def") + space + self._identifier(name) + params + Text(" : ") + ret
 
     def export_action(self, action: Binding[terms.ActionDefinition]) -> Doc:
-        args = [ArbitraryGenerator("a").visit_sort(b.decl) for b in action.decl.formal_params]
-        ret = "Unit" if len(action.decl.formal_returns) == 0 else action.decl.formal_returns[0]
-        return Text(f"exported[{ret}](") + \
+        arb_args = [ArbitraryGenerator("a").visit_sort(b.decl) for b in action.decl.formal_params]
+        ret = Text("Unit") if len(action.decl.formal_returns) == 0 else BoxedSort().visit_sort(action.decl.formal_returns[0])
+
+        gen_args = [BoxedSort().visit_sort(b.decl) for b in action.decl.formal_params] + [ret]
+        tvars = utils.enclosed("[", utils.join(gen_args, ", "), "]")
+        return Text("exported") + tvars + Text("(") + \
             quoted(action.name) + utils.soft_comma + \
             self._identifier(action.name) + \
-            utils.join([utils.soft_comma + arg for arg in args]) + \
+            utils.join([utils.soft_comma + arg for arg in arb_args]) + \
             Text(")")
 
     def add_conjecture(self, conj: Binding[terms.Expr]) -> Doc:
@@ -103,10 +106,14 @@ class Extractor(TermVisitor[Doc]):
         exportdocs: list[Doc] = [self.export_action(e) for e in exports]
         conjdocs: list[Doc] = [self.add_conjecture(conj) for conj in conjs]
 
-        body: list[Doc] = exportdocs + [utils.soft_line] + \
-                          conjdocs + [utils.soft_line] + \
-                          inits
-        return utils.join(body, "\n")
+        body = Nil()
+        if len(exportdocs) > 0:
+            body += utils.join(exportdocs, "\n") + Line()
+        if len(conjdocs) > 0:
+            body += utils.join(conjdocs, "\n") + Line()
+        if len(inits) > 0:
+            body += inits + Line()
+        return body
 
     def vardecl(self, binding: Binding[Sort]):
         sort = UnboxedSort().visit_sort(binding.decl)
@@ -244,16 +251,12 @@ class Extractor(TermVisitor[Doc]):
         var_docs = [self.vardecl(b) for b in act.vardecls]
         return utils.join(var_docs, Line()) + Line() + scope
 
-    def _finish_logical_assign(self, act: terms.LogicalAssign, assn: Doc):
-        ret = Nil()
-        boxed = BoxedSort()
-        for v in act.vars:
-            vs = v.sort()
-            assert (vs)
-            ret = ret + boxed.visit_sort(vs) + Text(".forEach(") + self._var(v) + Text(" => { ")
-        ret = ret + assn
-        for _ in act.vars:
-            ret = ret + Text(" })")
+    def _finish_logical_assign(self, act: terms.LogicalAssign, relsym: Doc, args: list[Doc], assn: Doc):
+        ret = relsym + Text(".iterator collect { case (")
+        ret = ret + utils.join(args, ",")
+        ret = ret + Text(") => ")
+        ret = ret + relsym + utils.enclosed("(", utils.join(args, ","), ")") + Text(" = ") + assn
+        ret = ret + Text(" }")
         return ret
 
     def _finish_native_action(self, act: terms.NativeAct, args: list[Doc]) -> Doc:
