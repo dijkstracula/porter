@@ -30,7 +30,17 @@ class DefaultValue(SortVisitor[Doc]):
         return Text(canonicalize_identifier(discriminants[0]))
 
     def _finish_function(self, node: sorts.Function, domain: list[Doc], range: Doc) -> Doc:
-        return UnboxedSort().visit_sort(node) + Text("()")
+        iters = [BeguineKind().visit_sort(a) for a in node.domain]
+        return Text("new ") + \
+                UnboxedSort().visit_sort(node) + \
+                utils.enclosed("(", utils.join(iters, ","), ")")
+
+    def _begin_native(self, nat: sorts.Native) -> Optional[Doc]:
+        # XXX: Presumably we will have a few special-cased native default
+        # values.  Maybe this should live as part of native_rewriter?
+        if nat.fmt.startswith("mutable.ArraySeq"):
+            return Text("mutable.ArraySeq.empty")
+        pass
 
     def _finish_native(self, lang: str, fmt: str, args: list[Doc]):
         # return Text("new ") + interpolate_native(fmt, args) + Text("()")
@@ -42,7 +52,7 @@ class DefaultValue(SortVisitor[Doc]):
         return Text("0")
 
     def _finish_record(self, rec: sorts.Record, fields: dict[str, Doc]):
-        return Text("new " + canonicalize_identifier(rec.name) + "()")
+        return Text("new " + canonicalize_identifier(rec.sort_name) + "()")
 
     def top(self):
         return Text("null")
@@ -68,7 +78,7 @@ class BoxedSort(SortVisitor[Doc]):
         return Text(name)
 
     def _finish_function(self, node: sorts.Function, domain: list[Doc], range: Doc):
-        return Text("beguine.Maps.Map") + Text(str(len(domain)))  # TODO: generics
+        return Text("new beguine.Maps.Map") + Text(str(len(domain)))  # TODO: generics
 
     def _finish_native(self, lang: str, fmt: str, args: list[Doc]):
         return interpolate_native(fmt, args)
@@ -77,7 +87,7 @@ class BoxedSort(SortVisitor[Doc]):
         return Text("Int")
 
     def _finish_record(self, rec: sorts.Record, fields: dict[str, Doc]):
-        return Text(canonicalize_identifier(rec.name))
+        return Text(canonicalize_identifier(rec.sort_name))
 
     def top(self):
         return Text("Void")
@@ -115,7 +125,7 @@ class UnboxedSort(SortVisitor[Doc]):
         return Text("Int")
 
     def _finish_record(self, rec: sorts.Record, fields: dict[str, Doc]):
-        return Text(canonicalize_identifier(rec.name))
+        return Text(canonicalize_identifier(rec.sort_name))
 
     def top(self):
         return Text("Unit")
@@ -160,13 +170,16 @@ class SortDeclaration(SortVisitor[Doc]):
         return Nil()  # TODO: should this be a typedef or something?
 
     def _finish_record(self, rec: sorts.Record, fields: dict[str, Doc]):
-        recname = canonicalize_identifier(rec.name)
+        recname = canonicalize_identifier(rec.sort_name)
         field_docs = [Text("var") + space +
                       Text(canonicalize_identifier(name)) + \
                       Text(": ") + UnboxedSort().visit_sort(s) + \
                       Text(" = ") + DefaultValue().visit_sort(s)
                       for name, s in rec.fields.items()]
-        clazz_decl = Text("class " + recname) + utils.soft_line + utils.enclosed("{", utils.join(field_docs, "\n"), "}")
+        clazz_decl = Text("class " + recname) + \
+                utils.padded("{") + Line() + \
+                Nest(4, utils.join(field_docs, "\n")) + \
+                Line() + Text("}")
 
         # TODO: look at how something like shapeless might help with this.
         metaclass_decl = Text("class ") + Text(record_metaclass_name(recname)) + \
@@ -191,27 +204,26 @@ class BeguineKind(SortVisitor[Doc]):
         return Text(f"sorts.BitVec({width})")
 
     def enum(self, name: str, discriminants: list[str]):
-        return Text(f"sorts.Enum[{name}]()")
+        return Text(canonicalize_identifier(name))
 
     def _finish_function(self, node: sorts.Function, domain: list[Doc], range: Doc):
         return Text("TODO")
 
     def numeric(self, name: str, lo: Optional[int], hi: Optional[int]):
-        lo_str = "Int.MinValue" if lo is None else f"{lo}"
-        hi_str = "Int.MaxValue" if hi is None else f"{hi}"
-        return Text(f"sorts.Number({lo_str}, {hi_str})")
+        return Text(canonicalize_identifier(name))
 
     def _finish_native(self, lang: str, fmt: str, args: list[Doc]):
         return Text("TODO (native sort kind)")  # TODO: should this be a typedef or something?
 
     def _finish_record(self, rec: sorts.Record, fields: dict[str, Doc]):
-        return Text("TODO (record sort kind)")
+        name = record_metaclass_name(rec.sort_name)
+        return Text(f"new {name}()")
 
     def top(self):
         return Text("sorts.Top()")
 
     def uninterpreted(self, name: str):
-        return Text("sorts.Uninterpreted()")
+        return Text(canonicalize_identifier(name))
 
 
 class ArbitraryGenerator(SortVisitor[Doc]):
@@ -233,7 +245,7 @@ class ArbitraryGenerator(SortVisitor[Doc]):
         return self.arbitrary_name + Text(f".numeric({name})")
 
     def _begin_record(self, rec: sorts.Record) -> Optional[Doc]:
-        return Text(record_metaclass_name(rec.name))
+        return Text(record_metaclass_name(rec.sort_name))
 
     def _finish_native(self, loc: Position, fmt: str, args: list[Doc]):
         return Text("TODO (native arbitrary)" + str(loc))

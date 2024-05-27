@@ -80,6 +80,10 @@ class ShimTestsForLinChain(unittest.TestCase):
         "im.sig.interp has some interpretations of uninterpreted sorts.  Make sure we slurp those up correctly."
         pass
 
+    def test_after_init(self):
+        "Ensure we iterate through the server IDs, binding prm__v0."
+        assert "server_id.inhabitants.get.foreach(prm__V0" in self.layout
+
 
 class ShimTestsForPingPong(unittest.TestCase):
     """ A bunch of specific things we want to check on a particular non-trivial Ivy program.

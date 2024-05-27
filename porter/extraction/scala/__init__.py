@@ -2,7 +2,7 @@ from datetime import datetime
 import os
 import subprocess
 
-from .terms import UnboxedSort, SortDeclaration, Extractor
+from .terms import SortDeclaration, Extractor
 from .utils import *
 
 from porter.ast import terms as astterms

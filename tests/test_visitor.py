@@ -70,10 +70,13 @@ class ExprCounter(Visitor[None]):
     def _finish_if(self, act: terms.If, test: None, then: list[None], els: Optional[None]):
         self.n_action_nodes += 1
 
+    def _finish_init(self, act: terms.Init, act_t: None):
+        self.n_action_nodes += 1
+
     def _finish_let(self, act: terms.Let, scope: None):
         self.n_action_nodes += 1
 
-    def _finish_logical_assign(self, act: terms.LogicalAssign, assn: None):
+    def _finish_logical_assign(self, act: terms.LogicalAssign, relsym, args, assn):
         self.n_action_nodes += 1
 
     def _finish_native_action(self, act: terms.NativeAct, args: list[None]):

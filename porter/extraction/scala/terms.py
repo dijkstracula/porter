@@ -78,7 +78,7 @@ class Extractor(TermVisitor[Doc]):
 
     def export_action(self, action: Binding[terms.ActionDefinition]) -> Doc:
         arb_args = [ArbitraryGenerator("a").visit_sort(b.decl) for b in action.decl.formal_params]
-        ret = Text("Unit") if len(action.decl.formal_returns) == 0 else BoxedSort().visit_sort(action.decl.formal_returns[0])
+        ret = Text("Unit") if len(action.decl.formal_returns) == 0 else BoxedSort().visit_sort(action.decl.formal_returns[0].decl)
 
         gen_args = [BoxedSort().visit_sort(b.decl) for b in action.decl.formal_params] + [ret]
         tvars = utils.enclosed("[", utils.join(gen_args, ", "), "]")
@@ -102,7 +102,7 @@ class Extractor(TermVisitor[Doc]):
     def initializers(self,
                      exports: list[Binding[terms.ActionDefinition]],
                      conjs: list[Binding[terms.Expr]],
-                     inits: list[Doc]):
+                     inits: Doc):
         exportdocs: list[Doc] = [self.export_action(e) for e in exports]
         conjdocs: list[Doc] = [self.add_conjecture(conj) for conj in conjs]
 
@@ -112,7 +112,7 @@ class Extractor(TermVisitor[Doc]):
         if len(conjdocs) > 0:
             body += utils.join(conjdocs, "\n") + Line()
         if len(inits) > 0:
-            body += inits + Line()
+            body += utils.join(inits, "\n") + Line()
         return body
 
     def vardecl(self, binding: Binding[Sort]):
@@ -165,13 +165,13 @@ class Extractor(TermVisitor[Doc]):
                     if sort.lo_range is not None:
                         # doc < lo ? lo : doc
                         lo = Text(str(sort.lo_range))
-                        saturated = utils.enclosed("(", doc + utils.padded("<") + lo, ")") + \
-                                    utils.padded("?") + lo + utils.padded(":") + saturated
+                        saturated = utils.enclosed("if (", doc + utils.padded("<") + lo, ")") + \
+                                    utils.padded("then") + lo + utils.padded("else") + saturated
                     if sort.hi_range is not None:
                         # doc > hi ? hi : doc
                         hi = Text(str(sort.hi_range))
-                        saturated = utils.enclosed("(", doc + utils.padded(">") + hi, ")") + \
-                                    utils.padded("?") + hi + utils.padded(":") + \
+                        saturated = utils.enclosed("if (", doc + utils.padded(">") + hi, ")") + \
+                                    utils.padded("then") + hi + utils.padded("else") + \
                                     utils.enclosed("(", saturated, ")")
                     return saturated
                 else:
@@ -247,11 +247,32 @@ class Extractor(TermVisitor[Doc]):
             ret = ret + utils.padded(Text("else")) + block(els)
         return ret
 
+    def _finish_init(self, act: terms.Init, doc: Doc):
+        ret = Nil()
+        for param in act.params:
+            # The assert will ensure that inhabitants() will return Some(Iterator).
+            assert isinstance(param.decl, sorts.Number)
+
+            varname = self._identifier(param.name)
+            sortname = self._identifier(param.decl.sort_name)
+            ret = ret + sortname
+            ret = ret + Text(f".inhabitants.get.foreach(") + varname + Text(" => {") + Line()
+        ret = ret + Nest(4, doc)
+        for param in act.params:
+            ret = ret + Line() + Text("})")
+        return ret
+
     def _finish_let(self, act: terms.Let, scope: Doc):
         var_docs = [self.vardecl(b) for b in act.vardecls]
         return utils.join(var_docs, Line()) + Line() + scope
 
     def _finish_logical_assign(self, act: terms.LogicalAssign, relsym: Doc, args: list[Doc], assn: Doc):
+        # Special case for when the logical assignment is to _every_ logical
+        # variable in the domain; semantically we want to zap out the Map and
+        # replace the range supplier.
+        if all([isinstance(a, terms.Var) for a in act.vars]):
+            return relsym + Text(".initWithDefault(() => ") + assn + Text(")")
+
         ret = relsym + Text(".iterator collect { case (")
         ret = ret + utils.join(args, ",")
         ret = ret + Text(") => ")
@@ -291,4 +312,4 @@ class Extractor(TermVisitor[Doc]):
         if isinstance(defn.body, terms.FieldAccess):
             pass
             # body = defn.body
-        return sig + space + block(body)
+        return sig + utils.padded("=") + block(body)

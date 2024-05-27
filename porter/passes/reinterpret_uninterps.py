@@ -40,7 +40,7 @@ class InterpretUninterpretedVisitor(SortVisitor[Sort]):
         return sorts.Native(loc, fmt, args)
 
     def _finish_record(self, rec: sorts.Record, fields: dict[str, Sort]):
-        return sorts.Record(rec.name, fields)
+        return sorts.Record(rec.sort_name, fields)
 
     def uninterpreted(self, name: str) -> Sort:
         if name in self.mapping:

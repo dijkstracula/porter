@@ -69,7 +69,7 @@ class Function(Sort):
 
 @dataclass(frozen=True)
 class Record(Sort):
-    name: str
+    sort_name: str
     fields: dict[str, Sort]
 
 

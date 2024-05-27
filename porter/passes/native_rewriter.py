@@ -13,7 +13,7 @@ FileLine = tuple[str, int]
 def visit(prog: terms.Program):
     remap = {
         ("collections.ivy", 924): "HashSet<`0`>",  # TODO: this is wrong
-        ("collections.ivy", 939): "`0` :+ `1`",
+        ("collections.ivy", 940): "`0` :+ `1`",
         ("collections.ivy", 946): "`0`.contains(`1`)",
         ("collections.ivy", 953): "TODO (vector::erase)",
         ("collections.ivy", 972): "TODO (vector::lub)",
@@ -88,7 +88,7 @@ class NativeRewriter(SortVisitorOverTerms):
             # return sorts.Native(loc, fmt, args)
 
         def _finish_record(self, rec: sorts.Record, fields: dict[str, Sort]):
-            return sorts.Record(rec.name, fields)
+            return sorts.Record(rec.sort_name, fields)
 
         def uninterpreted(self, name: str) -> Sort:
             if name in self.mapping:

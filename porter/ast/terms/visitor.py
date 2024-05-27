@@ -304,6 +304,15 @@ class Visitor(Generic[T]):
                 if els is not None:
                     els = self.visit_action(els)
                 return self._finish_if(node, test, then, els)
+            case Init(_, params, act):
+                bret = self._begin_init(node)
+                if bret is not None: return bret
+
+                self.scopes.append([b.name for b in params])
+                act = self.visit_action(act) 
+                ret = self._finish_init(node, act)
+                self.scopes.pop()
+                return ret
             case Let(_, vardecls, scope):
                 bret = self._begin_let(node)
                 if bret is not None: return bret
@@ -399,6 +408,12 @@ class Visitor(Generic[T]):
     def _finish_if(self, act: If, test: T, then: T, els: Optional[T]):
         raise UnimplementedASTNodeHandler(If)
 
+    def _begin_init(self, act: Init) -> Optional[T]:
+        pass
+
+    def _finish_init(self, act: Init, act_t: T) -> T:
+        raise UnimplementedASTNodeHandler(Init)
+
     def _begin_let(self, act: Let) -> Optional[T]:
         return None
 
@@ -477,7 +492,7 @@ class ImmutVisitor(Visitor[AST]):
 
     def _finish_exists(self, node: Exists, expr: Expr) -> Exists:
         assert isinstance(expr, Expr)
-        ret = Expr(node.ivy_node, expr)
+        ret = Exists(node.ivy_node, [v for v in node.vars], expr)
         ret._sort = node.sort()
         return ret
 
@@ -489,9 +504,16 @@ class ImmutVisitor(Visitor[AST]):
 
     def _finish_forall(self, node: Forall, expr: Expr) -> Forall:
         assert isinstance(expr, Expr)
-        ret = Forall(node.ivy_node, expr)
+        ret = Forall(node.ivy_node, [v for v in node.vars], expr)
         ret._sort = node.sort()
         return ret
+
+    def _finish_init(self, node: Init, act_t: Action) -> Init:
+        assert isinstance(act_t, Action)
+        ret = Init(node.ivy_node, [p for p in node.params], act_t)
+        ret._sort = node.sort()
+        return ret
+
 
     def _finish_ite(self, node: Ite, test: Expr, then: Expr, els: Expr) -> Ite:
         assert isinstance(test, Expr)
@@ -550,7 +572,7 @@ class ImmutVisitor(Visitor[AST]):
         ret._sort = act.sort()
         return ret
 
-    def _finish_ensures(self, act: Ensures, args: Expr) -> Debug:
+    def _finish_ensures(self, act: Ensures, args: Expr) -> Ensures:
         assert isinstance(act, Ensures)
         assert isinstance(args, Expr)
         ret = Ensures(act.ivy_node, args)
@@ -569,6 +591,7 @@ class ImmutVisitor(Visitor[AST]):
         assert isinstance(act, If)
         assert isinstance(test, Expr)
         assert isinstance(then, Action)
+        assert isinstance(els, Action)
         # assert isinstance(els, Union)
         ret = If(act.ivy_node, test, then, els)
         ret._sort = act.sort()
@@ -580,13 +603,13 @@ class ImmutVisitor(Visitor[AST]):
         ret._sort = act.sort()
         return ret
 
-    def _finish_logical_assign(self, act: LogicalAssign, relsym, args, assn) -> T:
+    def _finish_logical_assign(self, act: LogicalAssign, relsym, args, assn) -> LogicalAssign:
         assert isinstance(assn, Expr)
-        ret = LogicalAssign(act.ivy_node, act.relsym, act.args, act.assign)
+        ret = LogicalAssign(act.ivy_node, act.relsym, act.vars, act.assign)
         ret._sort = act.sort()
         return ret
 
-    def _finish_native_action(self, act: NativeAct, args):
+    def _finish_native_action(self, act: NativeAct, args) -> NativeAct:
         assert isinstance(args, list)
         assert all([isinstance(elem, Expr) for elem in args])
         ret = NativeAct(act.ivy_node, act.lang, act.fmt, args)
@@ -735,6 +758,9 @@ class SortVisitorOverTerms(MutVisitor):
 
     def _finish_let(self, act: Let, scope: None):
         act.vardecls = [Binding(b.name, self.sort_visitor.visit_sort(b.decl)) for b in act.vardecls]
+
+    def _finish_init(self, act: Init, act_t: None) -> None:
+        act.params = [Binding(b.name, self.sort_visitor.visit_sort(b.decl)) for b in act.params]
 
     def _finish_function_def(self, name: str, defn: FunctionDefinition, body: None):
         defn.formal_params = [Binding(b.name, self.sort_visitor.visit_sort(b.decl)) for b in defn.formal_params]

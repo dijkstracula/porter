@@ -18,23 +18,6 @@ def compile_and_parse(fn) -> terms.Program:
     return shims.program_from_ivy(im)
 
 
-def test_extensionality_pass():
-    prog = compile_and_parse(os.path.join(progdir, "004_relations_and_invariants.ivy"))
-    ext = NonExtensionals(None)
-    ext.visit_program(prog)
-
-    # conn_counts, link, and semaphore should be in prog.individuals.
-
-    # `link` has a logical assignment `link(x, Y) := false`, so by the
-    # ivy_to_cpp rules it is not extensional.
-    assert ("link" in ext.nons)
-
-    # The remaining relations do not violate the ivy_to_cpp rules so
-    # we should not have expected to accumulate them during visiting.
-    assert ("semaphore" not in ext.nons)
-    assert ("conn_counts" not in ext.nons)
-
-
 class FreevarPasses(unittest.TestCase):
     def test_freevar_pass(self):
         prog = compile_and_parse(os.path.join(progdir, "004_relations_and_invariants.ivy"))

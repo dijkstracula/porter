@@ -163,6 +163,10 @@ class If(Action):
     then: Action
     els: Optional[Action]
 
+@dataclass
+class Init(Action):
+    params: list[Binding[Sort]]
+    act: Action
 
 @dataclass
 class Let(Action):

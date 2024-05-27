@@ -3,29 +3,24 @@ from porter.ast.terms.visitor import MutVisitor
 
 from ivy import ivy_module as imod
 
-from typing import Optional
 
-
-def inited_to_false(im: imod.Module, ia: terms.Assign) -> bool:
-    match ia:
-        case terms.Assign(terms.Apply(_, relsym, largs), terms.Constant(_, "false")):
-            return relsym in im.destructor_sorts and all([isinstance(arg, terms.Var) for arg in largs])
+def inited_to_const(rhs: terms.Expr, args: list[terms.Expr]) -> bool:
+    """A map cannot be extensional if it is ever initialized to something other
+    than a constant"""
+    if all([isinstance(arg, terms.Var) for arg in args]):
+        return isinstance(rhs, terms.Constant)
     return False
 
 
-def is_point_update(ia: terms.Action) -> bool:
-    match ia:
-        case terms.Assign(_, terms.Constant(_, _), _rhs):
-            return True
-    return False
 
+def is_point_update(args: list[terms.Expr]) -> bool:
+    """A map cannot be extensional if it is ever updated with a logical variable"""
 
-def cardinality(s) -> Optional[int]:
-    if hasattr(s, 'card'):
-        return s.card
-    if s.is_relational():
-        return 2
-    return None
+    # XXX: Technically, shouldn't this walk all the exprs and see if a Var
+    # resides in the AST somewhere?
+    if any([isinstance(arg, terms.Var) for arg in args]):
+        return False
+    return True
 
 
 class NonExtensionals(MutVisitor):
@@ -50,6 +45,21 @@ class NonExtensionals(MutVisitor):
     def _begin_program(self, prog: terms.Program):
         pass
 
+    def _finish_logical_assign(self, act: terms.LogicalAssign, relsym, args, assn):
+        relsym = act.relsym
+        args = act.vars
+        rhs = act.assign
+
+        # relsym cannot be extensional if it is:
+        # a) ever initialized to something other than a constant
+        if not inited_to_const(rhs, args):
+            self.nons.add(relsym)
+
+        # b) otherwise, ever updated with a non-point lhs
+        elif not is_point_update(args):
+            self.nons.add(relsym)
+
+
     def _finish_assign(self, act: terms.Assign, lhs: None, rhs: None):
         act_lhs = act.lhs
         act_rhs = act.rhs
@@ -61,10 +71,9 @@ class NonExtensionals(MutVisitor):
 
         # relsym cannot be extensional if it is:
         # a) ever initialized to something other than a constant
-        if all([isinstance(arg, terms.Var) for arg in args]):
-            if not isinstance(act_rhs, terms.Constant):
-                self.nons.add(relsym)
+        if not inited_to_const(act_rhs, args):
+            self.nons.add(relsym)
 
         # b) otherwise, ever updated with a non-point lhs
-        elif any([isinstance(arg, terms.Var) for arg in args]):
+        if not is_point_update(args):
             self.nons.add(relsym)

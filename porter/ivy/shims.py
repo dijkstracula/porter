@@ -1,3 +1,4 @@
+import dataclasses
 import logging
 import os
 from pathlib import Path
@@ -330,7 +331,17 @@ def havok_from_ivy(im: imod.Module, iaction: iact.HavocAction) -> terms.Havok:
         modifies = [expr_from_ivy(im, m) for m in iaction.modifies()]
     return terms.Havok(iaction, modifies)
 
-
+def inits_from_ivy(im: imod.Module) -> list[terms.Action]:
+    ret = []
+    for ivy_act in im.initial_actions:
+        act = action_from_ivy(im, ivy_act)
+        if hasattr(ivy_act, "formal_params"):
+            params = [binding_from_ivy_const(im, p) for p in ivy_act.formal_params]
+            ret.append(terms.Init(ivy_act, params, act))
+        else:
+            ret.append(act)
+    return ret
+            
 def local_from_ivy(im: imod.Module, iaction: iact.LocalAction) -> terms.Let:
     varnames = [binding_from_ivy_const(im, c) for c in iaction.args[:-1]]
     act = action_from_ivy(im, iaction.args[-1])
@@ -466,10 +477,12 @@ def program_from_ivy(im: imod.Module) -> terms.Program:
             porter_sort = sorts.record_from_ivy(im, name)
         else:
             porter_sort = sorts.from_ivy(im, ivy_sort)
+        if hasattr(porter_sort, "sort_name"):
+            porter_sort = dataclasses.replace(porter_sort, sort_name=name)
         porter_sorts[name] = porter_sort
 
     vardecls = [binding_from_ivy_const(im, sym) for sym in members(im)]
-    inits = [action_from_ivy(im, a) for a in im.initial_actions]
+    inits = inits_from_ivy(im)
 
     actions = []
     for name, ivy_act in im.actions.items():
