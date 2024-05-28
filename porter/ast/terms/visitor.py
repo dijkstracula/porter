@@ -65,9 +65,12 @@ class Visitor(Generic[T]):
             name = binding.name
             action = binding.decl
 
-            self._begin_action_def(name, action)
-            body = self.visit_action(action.body)
+            bret = self._begin_action_def(name, action)
+            if bret is not None:
+                self.actions.append(bret)
+                continue
 
+            body = self.visit_action(action.body)
             self.scopes.append([name])
             self.actions.append(Binding(name, self._finish_action_def(name, action, body)))
             self.scopes.pop()

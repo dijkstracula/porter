@@ -11,8 +11,10 @@ FileLine = tuple[str, int]
 
 
 def visit(prog: terms.Program):
-    remap = {
-        ("collections.ivy", 924): "HashSet<`0`>",  # TODO: this is wrong
+    remap: dict[FileLine, str] = {
+        # NativeActs
+
+        ("collections.ivy", 924): "Set[`0`]",
         ("collections.ivy", 940): "`0` :+ `1`",
         ("collections.ivy", 946): "`0`.contains(`1`)",
         ("collections.ivy", 953): "TODO (vector::erase)",
@@ -20,26 +22,24 @@ def visit(prog: terms.Program):
         ("collections.ivy", 989): "TODO (vector::begin)",
         ("collections.ivy", 1001): "TODO (vector::next)",
         ("collections_impl.ivy", 6): "mutable.ArraySeq[`0`]",
-        ("collections_impl.ivy", 17): """
-            `2`.ensureCapacity(`0`);
-            for (int _internal_i = 0; i < `0`; _internal_i++) {
-                `2`.set(_internal_i, `1`);
-            }""",
+        ("collections_impl.ivy", 17): "`2` = mutable.ArraySeq.fill(`0`)(`1`)",
         ("collections_impl.ivy", 25): "a = List.empty",
         ("collections_impl.ivy", 37): """
-            if (0 <= `1` && `1` < `0`.size()) {
+            if (0 <= `1` && `1` < `0`.size) {
                 `2` = `0`.get(`1`);
             }""",
-        ("collections_impl.ivy", 44): "`1` = `0`.size();",
-        ("collections_impl.ivy", 50): """
-            int _old_size = `0`.size();
-            for (int _internal_i = _old_size; i < `1`; _internal_i++) {
-                `0`.set(_internal_i, `2`);
-            }""",
-        ("collections_impl.ivy", 75): "`0` = `0`.add(`1`)",
+        ("collections_impl.ivy", 44): "`1` = `0`.size",
+        ("collections_impl.ivy", 50): """TODO""",
+            ("collections_impl.ivy", 75): "`0` = `0` :+ `1`)",
         ("tcp_serdes.ivy", 506): "HashMap<Integer, Object>",
         ("tcp_serdes.ivy", 508): "TODO",
-        ("tcp_serdes.ivy", 510): "TODO"
+        ("tcp_serdes.ivy", 510): "TODO",
+
+        # NativeExprs
+
+        ("collections_impl.ivy", 8): "a(i)",
+        ("collections_impl.ivy", 10): "`0`.size",
+        ("collections_impl.ivy", 111): "a.slice(lo, hi)",
     }
     nr = NativeRewriter("scala", remap)
     nr.visit_program(prog)
@@ -103,6 +103,19 @@ class NativeRewriter(SortVisitorOverTerms):
         self.new_lang = new_lang
         self.mapping = mapping
         self.sort_visitor = self.NativeSortRewriter(new_lang, mapping)
+
+    def _finish_native_expr(self, node: terms.NativeExpr, args: list[None]):
+        pos = node.pos()
+        assert pos
+        file = pos.origin().filename.name
+        line = pos.origin().line
+        if (file, line) in self.mapping:
+            remapped = self.mapping[(file, line)]
+            node.lang = self.new_lang
+            node.fmt = remapped
+        else:
+            raise Exception(f"No Native remapping for {file}:{line}")
+
 
     def _finish_native_action(self, act: terms.NativeAct, args: list[None]):
         pos = act.pos()

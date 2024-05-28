@@ -102,12 +102,18 @@ def range_from_ivy(sort: ilog.RangeSort) -> Number:
     return Number(sort.name, lo, hi)
 
 
-def record_from_ivy(im: imod.Module, name: str) -> Record:
-    if name not in im.sort_destructors:
-        raise Exception(f"is {name} the name of a class?")
+def sorts_with_members(im: imod.Module) -> dict[str, ilog.Const]:
+    ret = {}
+    for name, fields in im.sort_destructors.items():
+        # XXX: what is the right way to do this? im.aliases does not have all aliases?
+        if name.endswith(".t"):
+            ret[name[:-2]] = fields
+        ret[name] = fields
+    return ret
 
+def record_from_ivy(im: imod.Module, name: str) -> Record:
     fields = {}
-    for c in im.sort_destructors[name]:
+    for c in sorts_with_members(im)[name]:
         field_name = c.name.rsplit(".", 1)[-1]
         # field_name = strip_prefixes([name], ".", c.name)
         field_sort = from_ivy(im, c.sort)
@@ -169,5 +175,4 @@ def from_ivy(im: imod.Module, sort) -> Sort:
         return Native(Position.from_ivy(sort.lineno), native_blob, args)
     if isinstance(sort, ilog.TopSort):
         return Top()
-    import pdb; pdb.set_trace()
     raise Exception(f"TODO {type(sort)}")

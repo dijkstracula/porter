@@ -74,7 +74,7 @@ class Extractor(TermVisitor[Doc]):
         assert ret_sort
         ret = unboxed.visit_sort(ret_sort)
 
-        return Text("def") + space + self._identifier(name) + params + Text(" : ") + ret
+        return Text("def") + space + self._identifier(name) + params + Text(": ") + ret
 
     def export_action(self, action: Binding[terms.ActionDefinition]) -> Doc:
         arb_args = [ArbitraryGenerator("a").visit_sort(b.decl) for b in action.decl.formal_params]
@@ -146,11 +146,11 @@ class Extractor(TermVisitor[Doc]):
                 return ident
 
     def _finish_apply(self, node: terms.Apply, relsym_ret: Doc, args_ret: list[Doc]):
+        if len(node.args) == 0:
+            return relsym_ret
         return relsym_ret + utils.enclosed("(", utils.join(args_ret, ", "), ")")
 
     def _finish_binop(self, node: terms.BinOp, lhs_ret: Doc, rhs_ret: Doc):
-        # XXX: If this is infix + we need to ensure we bound the value according to
-        # the sort's range, if it has one!
         match node.op:
             case "and":
                 return lhs_ret + utils.padded("&&") + rhs_ret
@@ -166,13 +166,12 @@ class Extractor(TermVisitor[Doc]):
                         # doc < lo ? lo : doc
                         lo = Text(str(sort.lo_range))
                         saturated = utils.enclosed("if (", doc + utils.padded("<") + lo, ")") + \
-                                    utils.padded("then") + lo + utils.padded("else") + saturated
+                                    lo + utils.padded("else") + saturated
                     if sort.hi_range is not None:
                         # doc > hi ? hi : doc
                         hi = Text(str(sort.hi_range))
                         saturated = utils.enclosed("if (", doc + utils.padded(">") + hi, ")") + \
-                                    utils.padded("then") + hi + utils.padded("else") + \
-                                    utils.enclosed("(", saturated, ")")
+                                    hi + utils.padded("else") + saturated
                     return saturated
                 else:
                     return lhs_ret + utils.padded(node.op) + rhs_ret
@@ -181,14 +180,17 @@ class Extractor(TermVisitor[Doc]):
 
     def _finish_exists(self, node: terms.Exists, expr: Doc):
         bound_vars = bounds_for_exists(node)
-        return iterate_through_varbounds(bound_vars, expr) + Text(".anyMatch(b -> b)")
+        return iterate_through_varbounds(bound_vars, expr, "exists")
 
     def _finish_forall(self, node: terms.Forall, expr: Doc):
         bound_vars = bounds_for_forall(node)
-        return iterate_through_varbounds(bound_vars, expr) + Text(".allMatch(b -> b)")
+        return iterate_through_varbounds(bound_vars, expr, "forall")
 
     def _finish_ite(self, node: terms.Ite, test: Doc, then: Doc, els: Doc):
-        return test + utils.padded("?") + then + utils.padded(":") + els
+        if_block = Text("if (") + test + Text(")")
+        ret = if_block + space + block(then)
+        ret = ret + utils.padded(Text("else")) + block(els)
+        return ret
 
     def _finish_native_expr(self, node: terms.NativeExpr, args: list[Doc]) -> Doc:
         return interpolate_native(node.fmt, args)

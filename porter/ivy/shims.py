@@ -69,7 +69,7 @@ def maybe_field_access_from_apply(im: imod.Module, app: terms.Apply) -> Optional
         return None
     maybe_sort_name, field_name = t
 
-    if maybe_sort_name not in im.sort_destructors:
+    if maybe_sort_name not in sorts.sorts_with_members(im):
         return None
 
     # At this point, we know that `maybe_sort_name` is indeed the name of a record.  The next thing to find out
@@ -78,11 +78,9 @@ def maybe_field_access_from_apply(im: imod.Module, app: terms.Apply) -> Optional
     # Some gnarly surgery: the sort of app is unfortunately going to not tell us that this is a Record,
     # but rather that it's uninterpreted, so we have to determine that by whether its name is in the
     # module's sort_destructors.
-    porter_sort = app.sort()
-    if isinstance(porter_sort, sorts.Uninterpreted):
-        recordified = sorts.record_from_ivy(im, maybe_sort_name)
-        if field_name not in recordified.fields.keys():
-            return None
+    recordified = sorts.record_from_ivy(im, maybe_sort_name)
+    if field_name not in recordified.fields.keys():
+        return None
 
     return terms.FieldAccess(app.ivy_node, maybe_self, field_name)
 
@@ -473,7 +471,7 @@ def program_from_ivy(im: imod.Module) -> terms.Program:
     for name, ivy_sort in list(im.sig.sorts.items()) + list(im.native_types.items()):
         if name in im.sig.interp:
             porter_sort = sort_from_interped(im, name, ivy_sort)
-        elif name in im.sort_destructors:
+        elif name in sorts.sorts_with_members(im):
             porter_sort = sorts.record_from_ivy(im, name)
         else:
             porter_sort = sorts.from_ivy(im, ivy_sort)
@@ -495,7 +493,7 @@ def program_from_ivy(im: imod.Module) -> terms.Program:
         name = lf.formula.defines().name
         if name == "<":  # HACK
             continue
-        if name in im.sort_destructors:
+        if name in sorts.sorts_with_members(im):
             continue
         defns.append(Binding(name, function_def_from_ivy(im, lf.formula)))
 
@@ -504,7 +502,7 @@ def program_from_ivy(im: imod.Module) -> terms.Program:
     ###
 
     # At this point, Records are going to marked as bound but typed as Uninterpreted. Do a pass to patch those up.
-    to_remap: dict[str, sorts.Sort] = {name: sorts.record_from_ivy(im, name) for name in im.sort_destructors}
+    to_remap: dict[str, sorts.Sort] = {name: sorts.record_from_ivy(im, name) for name in sorts.sorts_with_members(im)}
     to_remap.update({name: sort for name, sort in porter_sorts.items() if not isinstance(sort, sorts.Uninterpreted)})
 
     # Irritating hack because we do not have yet a mechanism to set eg. client_id.max on the CLI just yet

@@ -37,7 +37,7 @@ class BoundExprs(Visitor[list[terms.Expr]]):
     does. """
 
     @staticmethod
-    def from_exists(fmla: terms.Exists) -> list[(Binding[sorts.Sort], terms.Expr)]:
+    def from_exists(fmla: terms.Exists) -> list[tuple[Binding[sorts.Sort], terms.Expr]]:
         ret = []
         free_vars = fmla.vars
         for b in free_vars:
@@ -47,7 +47,7 @@ class BoundExprs(Visitor[list[terms.Expr]]):
         return ret
 
     @staticmethod
-    def from_forall(fmla: terms.Forall) -> list[(Binding[sorts.Sort], terms.Expr)]:
+    def from_forall(fmla: terms.Forall) -> list[tuple[Binding[sorts.Sort], terms.Expr]]:
         ret = []
         for b in fmla.vars:
             # TODO: a thing I need to do in the nested visitor is turn b into a Constant!
