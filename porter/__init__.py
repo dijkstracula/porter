@@ -20,7 +20,7 @@ def extract(isolate):
         path = Path(os.getcwd(), path)
 
     prog = shims.handle_isolate(path)
-    extracted = extraction.extract_java(prog)
+    extracted = extraction.extract_scala(prog)
 
     print(extracted)
 

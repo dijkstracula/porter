@@ -594,8 +594,7 @@ class ImmutVisitor(Visitor[AST]):
         assert isinstance(act, If)
         assert isinstance(test, Expr)
         assert isinstance(then, Action)
-        assert isinstance(els, Action)
-        # assert isinstance(els, Union)
+        assert isinstance(els, Optional[Action])
         ret = If(act.ivy_node, test, then, els)
         ret._sort = act.sort()
         return ret

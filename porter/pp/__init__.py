@@ -194,5 +194,5 @@ def simpl(d: Doc, recurse=True) -> Doc:
                     return d2
                 case d1, d2:
                     return Choice(d1, d2)
-    raise Exception(f"TODO: {d.__class__}")
+    raise Exception(f"TODO: {d} is of instance {d.__class__}")
 

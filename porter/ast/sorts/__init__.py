@@ -111,6 +111,7 @@ def sorts_with_members(im: imod.Module) -> dict[str, ilog.Const]:
         ret[name] = fields
     return ret
 
+
 def record_from_ivy(im: imod.Module, name: str) -> Record:
     fields = {}
     for c in sorts_with_members(im)[name]:
@@ -158,7 +159,7 @@ def from_ivy(im: imod.Module, sort) -> Sort:
             else:
                 return from_ivy(im, sort_or_name)
         else:
-            return Uninterpreted(sort.rep) # XXX ???
+            return Uninterpreted(sort.rep)  # XXX ???
     if isinstance(sort, ilog.FunctionSort):
         domain = [from_ivy(im, s) for s in sort.domain]
         ret = from_ivy(im, sort.range)

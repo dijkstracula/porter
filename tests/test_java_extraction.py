@@ -1,14 +1,46 @@
 from porter.ivy import shims
 from porter.ast import Binding, terms, sorts
 from porter.pp.formatter import Naive
+from porter import extraction
 from porter.extraction.scala import terms as jterms
 
-from . import compile_annotated_expr
+from . import compile_annotated_expr, compile_toplevel
 
 import unittest
 
 
-class JavaExtractionTests(unittest.TestCase):
+class RecordExtractionTests(unittest.TestCase):
+
+    def setUp(self):
+        cls = """class foo = { 
+                field x: nat
+                field y: nat
+              }
+              after init {
+                var f: foo;
+                f.x := f.x;
+              }"""
+        im, _ = compile_toplevel(cls)
+        prog = shims.program_from_ivy(im)
+        self.layout = extraction.extract_scala(prog, 80)
+
+    def test_fields(self):
+        self.assertIn("var x: Int", self.layout)
+        self.assertIn("var y: Int", self.layout)
+
+    def test_classdecls(self):
+        self.assertIn("class foo", self.layout)
+        self.assertIn("object foo extends sorts.Record[foo]", self.layout)
+
+    def test_synthesized_method_sigs(self):
+        self.assertIn("override def arbitrary(implicit a : Arbitrary) = ", self.layout)
+        self.assertIn("private def canEqual(other: Any): Boolean = ", self.layout)
+        self.assertIn("override def equals(other: Any) = ", self.layout)
+        self.assertIn("override def hashCode(): Int = ", self.layout)
+        self.assertIn("override def toString = ", self.layout)
+
+
+class TermExtractionTests(unittest.TestCase):
     extractor = jterms.Extractor()
 
     def test_constant(self):
@@ -90,7 +122,13 @@ class JavaExtractionTests(unittest.TestCase):
         expr = terms.Ite(None, test, then, els)
 
         extracted = Naive(80).format(self.extractor.visit_expr(expr))
-        self.assertEqual(extracted.layout(), "1 < 2 ? f : g")
+        self.assertEqual(extracted.layout(), "\n".join([
+            "if (1 < 2) {",
+            "    f",
+            "} else {",
+            "    g",
+            "}"
+        ]))
 
     def test_unop(self):
         # Trivial expressions can have parens elided.
@@ -118,7 +156,7 @@ class JavaExtractionTests(unittest.TestCase):
         layout = Naive(80).format(extracted).layout()
         self.assertEqual(layout, "\n".join([
             "if (1 < 2) {",
-            "    f()",
+            "    f",
             "}"
         ]))
 
@@ -132,9 +170,9 @@ class JavaExtractionTests(unittest.TestCase):
         layout = Naive(80).format(extracted).layout()
         self.assertEqual(layout, "\n".join([
             "if (1 < 2) {",
-            "    f()",
+            "    f",
             "} else {",
-            "    g()",
+            "    g",
             "}"
         ]))
 

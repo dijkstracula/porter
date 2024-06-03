@@ -32,6 +32,3 @@ def canonicalize_identifier(s: str) -> str:
         return f"{s}_ident"
     return s
 
-
-def record_metaclass_name(name: str):
-    return name + "__ivysort"

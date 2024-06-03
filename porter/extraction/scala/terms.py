@@ -3,7 +3,7 @@ from .sorts import *
 from .utils import *
 
 from porter.ast import Binding, terms
-from porter.ast.sorts import Enum, Sort, Record
+from porter.ast.sorts import Enum, Sort
 from porter.ast.terms.visitor import Visitor as TermVisitor
 from porter.quantifiers import bounds_for_exists, bounds_for_forall
 from porter.pp import Doc, Text, Line, Nil, utils
@@ -165,12 +165,12 @@ class Extractor(TermVisitor[Doc]):
                     if sort.lo_range is not None:
                         # doc < lo ? lo : doc
                         lo = Text(str(sort.lo_range))
-                        saturated = utils.enclosed("if (", doc + utils.padded("<") + lo, ")") + \
+                        saturated = Text("if") + utils.padded(utils.enclosed("(", doc + utils.padded("<") + lo, ")")) + \
                                     lo + utils.padded("else") + saturated
                     if sort.hi_range is not None:
                         # doc > hi ? hi : doc
                         hi = Text(str(sort.hi_range))
-                        saturated = utils.enclosed("if (", doc + utils.padded(">") + hi, ")") + \
+                        saturated = Text("if") + utils.padded(utils.enclosed("(", doc + utils.padded(">") + hi, ")")) + \
                                     hi + utils.padded("else") + saturated
                     return saturated
                 else:
@@ -187,8 +187,8 @@ class Extractor(TermVisitor[Doc]):
         return iterate_through_varbounds(bound_vars, expr, "forall")
 
     def _finish_ite(self, node: terms.Ite, test: Doc, then: Doc, els: Doc):
-        if_block = Text("if (") + test + Text(")")
-        ret = if_block + space + block(then)
+        if_block = Text("if") + utils.padded(utils.enclosed("(", test, ")"))
+        ret = if_block + block(then)
         ret = ret + utils.padded(Text("else")) + block(els)
         return ret
 
@@ -243,8 +243,8 @@ class Extractor(TermVisitor[Doc]):
         return Nil()  # TODO: ???
 
     def _finish_if(self, act: terms.If, test: Doc, then: Doc, els: Optional[Doc]) -> Doc:
-        if_block = Text("if (") + test + Text(")")
-        ret = if_block + space + block(then)
+        if_block = Text("if") + utils.padded(utils.enclosed("(", test, ")"))
+        ret = if_block + block(then)
         if els is not None:
             ret = ret + utils.padded(Text("else")) + block(els)
         return ret
