@@ -2,14 +2,12 @@ from . import *
 
 from typing import Union
 
-# TODO: I hate calling this util.
-
 space = Text(" ")
 soft_line = space | Line()
 soft_comma = Text(",") + soft_line
 
 
-def join(ds: list[Doc], op: Union[Doc, str] = " "):
+def join(ds: list[Doc], op: Union[Doc, str] = soft_comma):
     if len(ds) == 0:
         return Nil()
     if len(ds) == 1:
@@ -25,7 +23,7 @@ def join(ds: list[Doc], op: Union[Doc, str] = " "):
 def padded(op: Union[Doc, str]):
     if isinstance(op, str):
         op = Text(op)
-    return soft_line + op + soft_line
+    return space + op + space
 
 
 def dotted(d1: Doc, d2: Doc):

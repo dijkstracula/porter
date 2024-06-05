@@ -1,14 +1,13 @@
 from .quantifiers import iterate_through_varbounds
 from .sorts import *
-from .utils import *
+from .helpers import *
 
 from porter.ast import Binding, terms
 from porter.ast.sorts import Enum, Sort
 from porter.ast.terms.visitor import Visitor as TermVisitor
 from porter.quantifiers import bounds_for_exists, bounds_for_forall
-from porter.pp import Doc, Text, Line, Nil, utils
 from porter.pp.formatter import interpolate_native
-from porter.pp.utils import space
+from porter.pp.utils import *
 
 from typing import Optional
 
@@ -25,9 +24,7 @@ class Extractor(TermVisitor[Doc]):
             ret = unboxed.visit_sort(decl.formal_returns[0].decl)
 
         param_docs = [self._identifier(b.name) + Text(": ") + unboxed.visit_sort(b.decl) for b in decl.formal_params]
-        params = utils.enclosed("(", utils.join(param_docs, ", "), ")")
-
-        return Text("def") + space + self._identifier(name) + params + Text(" : ") + ret
+        return func_sig(self._identifier(name), param_docs, ret)
 
     def action_body(self, defn: terms.ActionDefinition):
         body = self.visit_action(defn.body)
@@ -66,27 +63,26 @@ class Extractor(TermVisitor[Doc]):
     # XXX: This is pretty similar to action_sig.
     def function_sig(self, name: str, decl: terms.FunctionDefinition) -> Doc:
         unboxed = UnboxedSort()
-
         param_docs = [self._identifier(b.name) + Text(": ") + unboxed.visit_sort(b.decl) for b in decl.formal_params]
-        params = utils.enclosed("(", utils.join(param_docs, ", "), ")")
 
         ret_sort = decl.body.sort()
         assert ret_sort
         ret = unboxed.visit_sort(ret_sort)
 
-        return Text("def") + space + self._identifier(name) + params + Text(": ") + ret
+        return func_sig(self._identifier(name), param_docs, ret)
 
     def export_action(self, action: Binding[terms.ActionDefinition]) -> Doc:
         arb_args = [ArbitraryGenerator("a").visit_sort(b.decl) for b in action.decl.formal_params]
         ret = Text("Unit") if len(action.decl.formal_returns) == 0 else BoxedSort().visit_sort(action.decl.formal_returns[0].decl)
 
         gen_args = [BoxedSort().visit_sort(b.decl) for b in action.decl.formal_params] + [ret]
-        tvars = utils.enclosed("[", utils.join(gen_args, ", "), "]")
-        return Text("exported") + tvars + Text("(") + \
-            quoted(action.name) + utils.soft_comma + \
-            self._identifier(action.name) + \
-            utils.join([utils.soft_comma + arg for arg in arb_args]) + \
-            Text(")")
+        tvars = helpers.typelist(gen_args)
+        args = helpers.arglist([
+            quoted(action.name),
+            self._identifier(action.name),
+            *arb_args
+        ])
+        return Text("exported") + tvars + args
 
     def add_conjecture(self, conj: Binding[terms.Expr]) -> Doc:
         fmla = self.visit_expr(conj.decl)
@@ -96,7 +92,7 @@ class Extractor(TermVisitor[Doc]):
             quoted(conj.name) + Text(", ") + \
             quoted(lineno.filename.name) + Text(", ") + \
             Text(str(lineno.line)) + Text(",") + utils.soft_line + \
-            Text("() => ") + fmla + \
+            Text("() => ") + block(fmla) + \
             Text(")")
 
     def initializers(self,
@@ -108,19 +104,19 @@ class Extractor(TermVisitor[Doc]):
 
         body = Nil()
         if len(exportdocs) > 0:
-            body += utils.join(exportdocs, "\n") + Line()
+            body += commented("Exports") + utils.join(exportdocs, "\n") + Line()
         if len(conjdocs) > 0:
-            body += utils.join(conjdocs, "\n") + Line()
+            body += commented("Conjectures") + utils.join(conjdocs, "\n") + Line()
         if len(inits) > 0:
-            body += utils.join(inits, "\n") + Line()
+            body += commented("Inits") + utils.join(inits, "\n") + Line()
         return body
 
     def vardecl(self, binding: Binding[Sort]):
-        sort = UnboxedSort().visit_sort(binding.decl)
         var = self._identifier(binding.name)
+        sort = UnboxedSort().visit_sort(binding.decl)
         init = DefaultValue().visit_sort(binding.decl)
 
-        return Text("var ") + var + Text(" : ") + sort + Text(" = ") + init
+        return local_decl(var, sort, init, True)
 
     # Expressions
 
@@ -148,14 +144,14 @@ class Extractor(TermVisitor[Doc]):
     def _finish_apply(self, node: terms.Apply, relsym_ret: Doc, args_ret: list[Doc]):
         if len(node.args) == 0:
             return relsym_ret
-        return relsym_ret + utils.enclosed("(", utils.join(args_ret, ", "), ")")
+        return relsym_ret + utils.enclosed("(", utils.join(args_ret), ")")
 
     def _finish_binop(self, node: terms.BinOp, lhs_ret: Doc, rhs_ret: Doc):
         match node.op:
             case "and":
-                return lhs_ret + utils.padded("&&") + rhs_ret
+                return helpers.binop(lhs_ret, "&&", rhs_ret)
             case "or":
-                return lhs_ret + utils.padded("||") + rhs_ret
+                return helpers.binop(lhs_ret, "||", rhs_ret)
                 op = "||"
             case "+" | "-" | "*" | "/":
                 sort = node.sort()
@@ -174,9 +170,9 @@ class Extractor(TermVisitor[Doc]):
                                     hi + utils.padded("else") + saturated
                     return saturated
                 else:
-                    return lhs_ret + utils.padded(node.op) + rhs_ret
+                    return helpers.binop(lhs_ret, node.op, rhs_ret)
             case op:
-                return lhs_ret + utils.padded(op) + rhs_ret
+                return helpers.binop(lhs_ret, op, rhs_ret)
 
     def _finish_exists(self, node: terms.Exists, expr: Doc):
         bound_vars = bounds_for_exists(node)
@@ -222,7 +218,7 @@ class Extractor(TermVisitor[Doc]):
             pred + Text(")")
 
     def _finish_assign(self, act: terms.Assign, lhs: Doc, rhs: Doc):
-        return lhs + utils.padded("=") + rhs
+        return assign(lhs, rhs)
 
     def _finish_assume(self, act: terms.Assume, pred: Doc):
         return Text("this.assume(") + pred + Text(")")
@@ -251,6 +247,8 @@ class Extractor(TermVisitor[Doc]):
 
     def _finish_init(self, act: terms.Init, doc: Doc):
         ret = Nil()
+        if len(act.params) == 0:
+            return doc
         for param in act.params:
             # The assert will ensure that inhabitants() will return Some(Iterator).
             assert isinstance(param.decl, sorts.Number)
@@ -260,13 +258,13 @@ class Extractor(TermVisitor[Doc]):
             ret = ret + sortname
             ret = ret + Text(f".inhabitants.get.foreach(") + varname + Text(" => {") + Line()
         ret = ret + Nest(4, doc)
-        for param in act.params:
+        for _ in act.params:
             ret = ret + Line() + Text("})")
         return ret
 
     def _finish_let(self, act: terms.Let, scope: Doc):
         var_docs = [self.vardecl(b) for b in act.vardecls]
-        return utils.join(var_docs, Line()) + Line() + scope
+        return sum(var_docs, start=Nil()) + scope
 
     def _finish_logical_assign(self, act: terms.LogicalAssign, relsym: Doc, args: list[Doc], assn: Doc):
         # Special case for when the logical assignment is to _every_ logical
@@ -276,9 +274,9 @@ class Extractor(TermVisitor[Doc]):
             return relsym + Text(".initWithDefault(() => ") + assn + Text(")")
 
         ret = relsym + Text(".iterator collect { case (")
-        ret = ret + utils.join(args, ",")
+        ret = ret + utils.join(args)
         ret = ret + Text(") => ")
-        ret = ret + relsym + utils.enclosed("(", utils.join(args, ","), ")") + Text(" = ") + assn
+        ret = ret + relsym + utils.enclosed("(", utils.join(args), ")") + Text(" = ") + assn
         ret = ret + Text(" }")
         return ret
 
@@ -287,7 +285,7 @@ class Extractor(TermVisitor[Doc]):
         return interpolate_native(act.fmt, args)
 
     def _finish_sequence(self, act: terms.Sequence, stmts: list[Doc]) -> Doc:
-        return utils.join(stmts, Line())
+        return sum(stmts, start=Nil())
 
     def _finish_while(self, act: terms.While, test: Doc, decreases: Optional[Doc], do: Doc):
         while_block = Text("while (") + test + Text(")")
@@ -301,9 +299,9 @@ class Extractor(TermVisitor[Doc]):
         sig = self.action_sig(name, defn)
         match defn.kind:
             case terms.ActionKind.IMPORTED:
-                return sig + Text(" = ") + block(self.imported_action(name, defn))
+                return assign(sig, block(self.imported_action(name, defn)))
             case _:
-                return sig + Text(" = ") + block(self.action_body(defn))
+                return assign(sig, block(self.action_body(defn)))
 
     def _finish_function_def(self,
                              name: str,
@@ -314,4 +312,4 @@ class Extractor(TermVisitor[Doc]):
         if isinstance(defn.body, terms.FieldAccess):
             pass
             # body = defn.body
-        return sig + utils.padded("=") + block(body)
+        return assign(sig, block(body))

@@ -1,4 +1,5 @@
-from .utils import *
+from .helpers import canonicalize_identifier, block
+from . import helpers
 
 from porter.ast import sorts
 
@@ -8,7 +9,7 @@ from porter.ivy import Position
 
 from porter.pp import Doc, Text, Nil, utils
 from porter.pp.formatter import interpolate_native
-from porter.pp.utils import space
+from porter.pp.utils import space, Line, enclosed
 
 from typing import Optional
 
@@ -33,7 +34,7 @@ class DefaultValue(SortVisitor[Doc]):
         iters = [BeguineKind().visit_sort(a) for a in node.domain]
         return Text("new ") + \
             UnboxedSort().visit_sort(node) + \
-            utils.enclosed("(", utils.join(iters, ", "), ")")
+            enclosed("(", utils.join(iters, ", "), ")")
 
     def _begin_native(self, nat: sorts.Native) -> Optional[Doc]:
         # XXX: Presumably we will have a few special-cased native default
@@ -116,7 +117,7 @@ class UnboxedSort(SortVisitor[Doc]):
         type_args = [self.visit_sort(s) for s in node.domain + [node.range]]
 
         cls = Text("Maps.Map") + Text(str(len(node.domain)))
-        return cls + utils.enclosed("[", utils.join(type_args, ", "), "]")
+        return cls + helpers.typelist(utils.join(type_args, ", "))
 
     def _finish_native(self, lang: str, fmt: str, args: list[Doc]):
         return interpolate_native(fmt, args)
@@ -143,10 +144,9 @@ class SortDeclaration(SortVisitor[Doc]):
         ret = Text("object ") + name + Text(" extends sorts.Record[") + name + Text("]")
 
         agen = ArbitraryGenerator("a")
-        body = agen.gen_signature() + utils.padded("=") + \
-               utils.enclosed("{", agen.record_gen_body(rec), "}")
+        body = helpers.assign(agen.gen_signature(), block(agen.record_gen_body(rec)))
 
-        ret = ret + utils.enclosed("{", body, "}")
+        ret = ret + space + utils.enclosed("{", body, "}")
         return ret
 
     @staticmethod
@@ -156,8 +156,10 @@ class SortDeclaration(SortVisitor[Doc]):
         poscase = poscase + Text("that.canEqual(this)")
         for name, sort in rec.fields.items():
             name = Text(canonicalize_identifier(name))
-            poscase = poscase + utils.soft_line + Text("&&") + utils.space + \
-                      name + utils.padded("==") + Text("that.") + name
+            poscase = helpers.binop(
+                poscase,
+                "&&",
+                name + utils.padded("==") + Text("that.") + name)
         negcase = Text("case _ => false")
 
         return Text("other match ") + \
@@ -166,38 +168,32 @@ class SortDeclaration(SortVisitor[Doc]):
     @staticmethod
     def record_equals_preds(rec: sorts.Record) -> Doc:
         name = Text(canonicalize_identifier(rec.sort_name))
-        canEqualDef = Text("private def canEqual(other: Any): Boolean = other.isInstanceOf[") + name + Text("]")
-        equalsDef = Text("override def equals(other: Any) = ") + \
-                    utils.enclosed("{", SortDeclaration.record_equal_body(rec), "}")
+        can_equal = Text("private ") + helpers.assign(
+            helpers.func_sig("canEqual", ["other: Any"], "Boolean"),
+            Text("other.isInstanceOf") + helpers.typelist(name)
+        ) + Line()
+        equals = Text("override ") + helpers.assign(
+            helpers.func_sig("equals", ["other: Any"], "Boolean"),
+            block(SortDeclaration.record_equal_body(rec))
+        ) + Line()
 
-        return canEqualDef + Line() + equalsDef
+        return can_equal + equals
 
     @staticmethod
     def record_hashcode(rec: sorts.Record) -> Doc:
         fold = Text("state.map(_.hashCode()).foldLeft(0)((a, b) => 31 * a + b)")
 
-        body = Text("val state = Seq") + \
-               utils.enclosed("(",
-                              utils.join([Text(canonicalize_identifier(n)) for n in rec.fields], ", "),
-                              ")")
-        return Text("override def hashCode(): Int = ") + \
-            utils.enclosed("{", body + Line() + fold, "}")
-
+        state = utils.enclosed("Seq(", utils.join([Text(canonicalize_identifier(n)) for n in rec.fields], ", "), ")")
+        state = helpers.local_decl(Text("state"), None, state)
+        return Text("override ") + helpers.assign(helpers.func_sig("hashCode", [], None), block(state + fold))
 
     @staticmethod
     def record_tostring(rec: sorts.Record) -> Doc:
-        state = Text("val state = Seq") + \
-               utils.enclosed("(",
-                              utils.join([Text(canonicalize_identifier(n)) for n in rec.fields], ", "),
-                              ")")
+        state = utils.enclosed("Seq(", utils.join([Text(canonicalize_identifier(n)) for n in rec.fields], ", "), ")")
+        state = helpers.local_decl(Text("state"), None, state)
 
-        pre = utils.enclosed("\"", Text(rec.sort_name) + Text("("), "\"")
         fold = Text('state.foldLeft("")((a, b) => a + ", " + b)')
-        post = utils.enclosed("\"", Text(")"), "\"")
-        ret_stmt = utils.join([pre, fold, post], Text(" + "))
-
-        return Text("override def toString = ") + \
-            utils.enclosed("{", state + Line() + ret_stmt, "}")
+        return Text("override ") + helpers.assign(helpers.func_sig("toString", [], None), block(state + fold))
 
     def bool(self):
         return Nil()
@@ -208,8 +204,10 @@ class SortDeclaration(SortVisitor[Doc]):
     def enum(self, name: str, discriminants: list[str]):
         name = canonicalize_identifier(name)
         typ = Text(f"type {name} = Value")
-        discs = Text("val ") + utils.join([Text(canonicalize_identifier(s)) for s in discriminants],
-                                          utils.soft_comma) + Text(" = Value")
+        discs = helpers.local_decl(
+            utils.join([Text(canonicalize_identifier(s)) for s in discriminants]),
+            None,
+            "Value")
         imp = Text(f"import {name}._")
 
         return Text("object") + utils.padded(Text(canonicalize_identifier(name))) + Text("extends Enumeration ") + \
@@ -220,33 +218,28 @@ class SortDeclaration(SortVisitor[Doc]):
         type_args = [boxed.visit_sort(s) for s in node.domain + [node.range]]
 
         cls = Text("beguine.Maps.Map") + Text(str(len(node.domain)))
-        return cls + utils.enclosed("[", utils.join(type_args, ", "), "]")
+        return cls + helpers.typelist(utils.join(type_args))
 
     def numeric(self, name: str, lo: Optional[int], hi: Optional[int]):
         name = canonicalize_identifier(name)
         lo_str = "Int.MinValue" if lo is None else f"{lo}"
         hi_str = "Int.MaxValue" if hi is None else f"{hi}"
-        return Text(f"val {name} = beguine.sorts.Number({lo_str}, {hi_str})")
+        return helpers.local_decl(name, None, f"beguine.sorts.Number({lo_str}, {hi_str})")
 
     def _finish_native(self, lang: str, fmt: str, args: list[Doc]):
         return Nil()  # TODO: should this be a typedef or something?
 
     def _finish_record(self, rec: sorts.Record, fields: dict[str, Doc]):
         recname = canonicalize_identifier(rec.sort_name)
-        field_docs = [Text("var") + space +
-                      Text(canonicalize_identifier(name)) + \
-                      Text(": ") + UnboxedSort().visit_sort(s) + \
-                      Text(" == ") + DefaultValue().visit_sort(s)
-                      for name, s in rec.fields.items()]
-        preds = [Line(),
-                 SortDeclaration.record_equals_preds(rec),
-                 SortDeclaration.record_hashcode(rec),
-                 SortDeclaration.record_tostring(rec)]
-
-        clazz_decl = Text("class " + recname) + \
-                     utils.padded("{") + Line() + \
-                     Nest(4, utils.join(field_docs + preds, "\n")) + Line() + \
-                     Line() + Text("}")
+        decls = [helpers.local_decl(canonicalize_identifier(name),
+                                    UnboxedSort().visit_sort(s),
+                                    DefaultValue().visit_sort(s),
+                                    True) for name, s in rec.fields.items()]
+        decls += [Line(),
+                  SortDeclaration.record_equals_preds(rec),
+                  SortDeclaration.record_hashcode(rec),
+                  SortDeclaration.record_tostring(rec)]
+        clazz_decl = Text("class " + recname) + space + block(sum(decls, start=Nil()))
 
         # TODO: look at how something like shapeless might help with this.
         return clazz_decl + Line() + SortDeclaration.record_companion_class(rec) + Line()
@@ -255,7 +248,7 @@ class SortDeclaration(SortVisitor[Doc]):
         return Text("Void")
 
     def uninterpreted(self, name: str):
-        return Nil()
+        return helpers.local_decl(name, None, "beguine.sorts.Uninterpreted()")
 
 
 class BeguineKind(SortVisitor[Doc]):
@@ -281,7 +274,7 @@ class BeguineKind(SortVisitor[Doc]):
             return Text("mutable.ArraySeq.empty")
 
     def _finish_native(self, lang: str, fmt: str, args: list[Doc]):
-        return Text("TODO (native sort kind)")  # TODO: should this be a typedef or something?
+        return Text("new ") + interpolate_native(fmt, args)
 
     def _finish_record(self, rec: sorts.Record, fields: dict[str, Doc]):
         return Text(canonicalize_identifier(rec.sort_name))
@@ -299,17 +292,18 @@ class ArbitraryGenerator(SortVisitor[Doc]):
     arbitrary_name: Doc
 
     def gen_signature(self) -> Doc:
-        return Text(f"override def arbitrary(implicit") + utils.padded(self.arbitrary_name) + Text(": Arbitrary)")
+        args = [self.arbitrary_name + Text(": Arbitrary")]
+        return Text("override ") + helpers.func_sig("arbitrary", args, "Arbitrary")
 
     def record_gen_body(self, rec: sorts.Record) -> Doc:
-        hdr = Text(f"val ret = new {canonicalize_identifier(rec.sort_name)}") + Line()
+        varname = Text("ret")
+        hdr = helpers.local_decl(varname, None, f"new {canonicalize_identifier(rec.sort_name)}", True)
 
         body = Nil()
         for name, sort in rec.fields.items():
-            body = body + Text(f"ret.{canonicalize_identifier(name)} = ") + self.visit_sort(sort) + Line()
+            body = body + helpers.assign(f"ret.{canonicalize_identifier(name)}", self.visit_sort(sort))
 
-        ftr = Text("ret")
-        return hdr + body + ftr
+        return hdr + body + varname
 
     def __init__(self, arbitrary_name: str):
         self.arbitrary_name = Text(arbitrary_name)
@@ -321,17 +315,17 @@ class ArbitraryGenerator(SortVisitor[Doc]):
         return self.arbitrary_name + Text(f".bitvec(sorts.BitVec({width}))")
 
     def enum(self, name: str, discriminants: tuple[str, ...]):
+        name = canonicalize_identifier(name)
         return self.arbitrary_name + Text(f".enumeration(Enum({name})")
 
     def numeric(self, name: str, lo: Optional[int], hi: Optional[int]):
-        # XXX:
-        return self.arbitrary_name + Text(f".numeric({name})")
+        return Text(canonicalize_identifier(name))
 
     def _begin_record(self, rec: sorts.Record) -> Optional[Doc]:
-        return Text(rec.sort_name)
+        return Text(canonicalize_identifier(rec.sort_name))
 
     def _finish_native(self, loc: Position, fmt: str, args: list[Doc]):
         return Text("TODO (native arbitrary)" + fmt + str(args))
 
     def uninterpreted(self, name: str) -> Doc:
-        return self.arbitrary_name + Text(f".uninterpreted")
+        return Text(canonicalize_identifier(name))

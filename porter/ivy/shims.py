@@ -86,7 +86,7 @@ def maybe_field_access_from_apply(im: imod.Module, app: terms.Apply) -> Optional
 
 
 def expr_from_apply(im: imod.Module, app: ilog.Apply) -> terms.Expr:
-    if app.func.name in ['+', "-", "<=", "<", ">", ">="]:
+    if app.func.name in ['+', "-", "*", "/", "<=", "<", ">", ">="]:
         lhs = expr_from_ivy(im, app.args[0])
         rhs = expr_from_ivy(im, app.args[1])
         return terms.BinOp(app, lhs, app.func.name, rhs)
@@ -422,8 +422,11 @@ def function_def_from_ivy(im: imod.Module, defn: iast.Definition) -> terms.Funct
     # then we can simplify a lot of this.
 
     lhs = expr_from_ivy(im, defn.args[0])
-    if not isinstance(lhs, terms.Apply):
-        pass
+
+    # In the case of a function that overloads an operator, we'll have converted this into a BinOp,
+    # so convert it back.
+    if isinstance(lhs, terms.BinOp):
+        lhs = terms.Apply(lhs.ivy_node, lhs.op, [lhs.lhs, lhs.rhs])
     assert isinstance(lhs, terms.Apply)
 
     formal_params = []
@@ -491,8 +494,8 @@ def program_from_ivy(im: imod.Module) -> terms.Program:
     defns = []
     for lf in im.definitions + im.native_definitions:
         name = lf.formula.defines().name
-        if name == "<":  # HACK
-            continue
+        #if name == "<":  # HACK
+        #    continue
         if name in sorts.sorts_with_members(im):
             continue
         defns.append(Binding(name, function_def_from_ivy(im, lf.formula)))

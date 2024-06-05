@@ -3,7 +3,7 @@ import os
 import subprocess
 
 from .terms import SortDeclaration, Extractor
-from .utils import *
+from .helpers import *
 
 from porter.ast import terms as astterms
 from ...pp import Nil
@@ -45,9 +45,9 @@ def extract(isolate_name: str, prog: astterms.Program) -> Doc:
 
     body = Nil()
     if len(sorts) > 0:
-        body += utils.join(sorts, "\n") + nlnl
+        body += sum(sorts, start=Nil()) + nlnl
     if len(var_docs) > 0:
-        body += utils.join(var_docs, "\n") + nlnl
+        body += sum(var_docs, start=Nil()) + nlnl
     body += inits
 
     if len(function_docs) > 0:

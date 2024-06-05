@@ -47,36 +47,38 @@ class Formatter:
         raise NotImplementedError
 
 
-
 class Naive(Formatter):
     curr_indent = 0
+    curr_column = 0
 
-    def naive_iter(self, k: int, d: Doc) -> Doc:
+    def naive_iter(self, d: Doc) -> Doc:
         match d:
             case Nil():
                 return Nil()
             case Text("\n") | Line():
+                self.curr_column = self.curr_indent
                 return Text("\n" + " " * self.curr_indent)
-            case Text(s):
-                return Text(s)
+            case Text(_):
+                return d
             case Concat(lhs, rhs):
-                lhs = self.naive_iter(k, lhs)
-                rhs = self.naive_iter(k, rhs)  # This is wrong but I'm also very stupid
+                lhs = self.naive_iter(lhs)
+                self.curr_column += lhs.length()
+                rhs = self.naive_iter(rhs)  # This is wrong but I'm also very stupid
                 return Concat(lhs, rhs)
             case Nest(i, d):
                 self.curr_indent += i
-                ret = Nest(i, self.naive_iter(i + k, d))
+                ret = Nest(i, self.naive_iter(d))
                 self.curr_indent -= i
                 return ret
             case Choice(d1, d2):
-                d1 = self.naive_iter(k, d1)
-                if d1.fits(self.width - k):
+                d1 = self.naive_iter(d1)
+                if d1.fits(self.width - self.curr_column):
                     return d1
                 else:
                     # TODO: if neither fits, we could consider flattening and retrying?
-                    return self.naive_iter(k, d2)
+                    return self.naive_iter(d2)
         raise NotImplementedError(d)
 
     def format(self, d: Doc) -> Doc:
         self.curr_indent = 0
-        return simpl(self.naive_iter(0, simpl(d)))
+        return simpl(self.naive_iter(simpl(d)))

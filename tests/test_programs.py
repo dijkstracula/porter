@@ -36,7 +36,7 @@ unit_tests = [os.path.join(progdir, f) for f in os.listdir(progdir) if os.path.i
 def test_compile_and_extract(fn):
     prog = shims.handle_isolate(Path(fn))
 
-    formatted = Naive(80).format(scala.extract(os.path.basename(fn), prog))
+    formatted = Naive(120).format(scala.extract(os.path.basename(fn), prog))
     _layout = formatted.layout()
     pass
 
@@ -44,21 +44,21 @@ def test_compile_and_extract(fn):
 @pytest.mark.parametrize("fn", glob_progs('accord-ivy', 'src'))
 def test_accord_subfiles(fn: str):
     prog = shims.handle_isolate(Path(fn))
-    formatted = Naive(80).format(scala.extract(os.path.basename(fn), prog))
+    formatted = Naive(120).format(scala.extract(os.path.basename(fn), prog))
     _layout = formatted.layout()
 
 
 @pytest.mark.parametrize("fn", glob_progs('ivy-ts', 'src'))
 def test_ivy_ts_subfiles(fn: str):
     prog = shims.handle_isolate(Path(fn))
-    formatted = Naive(80).format(scala.extract(os.path.basename(fn), prog))
+    formatted = Naive(120).format(scala.extract(os.path.basename(fn), prog))
     _layout = formatted.layout()
 
 
 def test_accord():
     fn = os.path.join(progdir, 'accord-ivy', 'src', 'protocol.ivy')
     prog = shims.handle_isolate(Path(fn))
-    formatted = Naive(80).format(scala.extract(os.path.basename(fn), prog))
+    formatted = Naive(120).format(scala.extract(os.path.basename(fn), prog))
     _layout = formatted.layout()
 
 
@@ -73,7 +73,7 @@ class ShimTestsForLinChain(unittest.TestCase):
     def setUp(self) -> None:
         fn = os.path.join(progdir, '003_linchain.ivy')
         self.prog = shims.handle_isolate(Path(fn))
-        self.formatted = Naive(80).format(scala.extract("ShimTestsForLinChain", self.prog))
+        self.formatted = Naive(120).format(scala.extract("ShimTestsForLinChain", self.prog))
         self.layout = self.formatted.layout()
 
     def test_relations(self):
@@ -99,7 +99,7 @@ class ShimTestsForPingPong(unittest.TestCase):
     def setUp(self) -> None:
         fn = os.path.join(progdir, '006_pingpong.ivy')
         self.prog = shims.handle_isolate(Path(fn))
-        self.formatted = Naive(80).format(scala.extract("ShimTestsForPingPong", self.prog))
+        self.formatted = Naive(120).format(scala.extract("ShimTestsForPingPong", self.prog))
         self.layout = self.formatted.layout()
 
     def test_interpreted_from_sig(self):

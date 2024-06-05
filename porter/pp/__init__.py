@@ -63,8 +63,8 @@ class Doc:
                 return True
             case Line():
                 return True
-            case Concat(Line(), _):
-                return True
+            case Concat(Line(), rhs):
+                return rhs.fits(width)
             case Text(s):
                 return len(s) <= width
             case Concat(lhs, rhs):
@@ -101,6 +101,8 @@ class Nil(Doc):
     "The unit value of a document - one with no text to format."
     pass
 
+    def __repr__(self): return ""
+
 
 @dataclass
 class Concat(Doc):
@@ -108,17 +110,21 @@ class Concat(Doc):
     lhs: Doc
     rhs: Doc
 
+    def __repr__(self): return str(self.lhs) + str(self.rhs)
 
 @dataclass
 class Text(Doc):
     "A text literal."
     text: str
 
+    def __repr__(self): return self.text
+
 
 @dataclass
 class Line(Doc):
     "A newline literal."
     pass
+
 
 
 @dataclass
@@ -140,7 +146,7 @@ class Choice(Doc):
 
 
 def simpl(d: Doc, recurse=True) -> Doc:
-    "A summary of a bunch of Wadler's laws."
+    "A summary of a bunch Of Wadler's laws."
     match d:
         case Nil():
             return Nil()

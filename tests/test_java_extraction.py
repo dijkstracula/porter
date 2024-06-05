@@ -33,10 +33,10 @@ class RecordExtractionTests(unittest.TestCase):
         self.assertIn("object foo extends sorts.Record[foo]", self.layout)
 
     def test_synthesized_method_sigs(self):
-        self.assertIn("override def arbitrary(implicit a : Arbitrary) = ", self.layout)
+        self.assertIn("override def arbitrary(a: Arbitrary): Arbitrary = ", self.layout)
         self.assertIn("private def canEqual(other: Any): Boolean = ", self.layout)
-        self.assertIn("override def equals(other: Any) = ", self.layout)
-        self.assertIn("override def hashCode(): Int = ", self.layout)
+        self.assertIn("override def equals(other: Any): Boolean = ", self.layout)
+        self.assertIn("override def hashCode = ", self.layout)
         self.assertIn("override def toString = ", self.layout)
 
 
@@ -55,7 +55,7 @@ class TermExtractionTests(unittest.TestCase):
 
         void_procedure = terms.ActionDefinition(None, terms.ActionKind.NORMAL, [], [], body)
         extracted = Naive(80).format(self.extractor.action_sig(name, void_procedure))
-        self.assertEqual(extracted.layout(), "def some_action() : Unit")
+        self.assertEqual(extracted.layout(), "def some_action: Unit")
 
     def test_action_sig_void(self):
         name = "some_action"
@@ -68,7 +68,7 @@ class TermExtractionTests(unittest.TestCase):
             [],
             body)
         extracted = Naive(80).format(self.extractor.action_sig(name, void_procedure))
-        self.assertEqual(extracted.layout(), "def some_action(a: Int) : Unit")
+        self.assertEqual(extracted.layout(), "def some_action(a: Int): Unit")
 
     def test_action_sig(self):
         name = "some_action"
@@ -81,7 +81,7 @@ class TermExtractionTests(unittest.TestCase):
             [Binding("ret", sorts.Number.nat_sort())],
             body)
         extracted = Naive(80).format(self.extractor.action_sig(name, void_procedure))
-        self.assertEqual(extracted.layout(), "def some_action(a: Int) : Int")
+        self.assertEqual(extracted.layout(), "def some_action(a: Int): Int")
 
     def test_app(self):
         expr = terms.Apply(None,
@@ -183,8 +183,9 @@ class TermExtractionTests(unittest.TestCase):
         extracted = self.extractor.visit_action(stmt)
         layout = Naive(80).format(extracted).layout()
         self.assertEqual(layout, "\n".join([
-            "var x : Int = 0",
-            "x = 42"
+            "var x: Int = 0",
+            "x = 42",
+            ""
         ]))
 
     def test_let_multi_binding(self):
@@ -197,8 +198,9 @@ class TermExtractionTests(unittest.TestCase):
         extracted = self.extractor.visit_action(stmt)
         layout = Naive(80).format(extracted).layout()
         self.assertEqual(layout, "\n".join([
-            "var x : Int = 0",
-            "var y : Boolean = false",
+            "var x: Int = 0",
+            "var y: Boolean = false",
             "x = 42",
             "y = true",
+            ""
         ]))
