@@ -38,7 +38,6 @@ class Position:
         return self.reference.origin()
 
 
-
 def symbols(im: imod.Module) -> Iterable[log.Const]:
     memo = set()
     for name, sym in im.sig.symbols.items():

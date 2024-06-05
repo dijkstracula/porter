@@ -184,6 +184,7 @@ class TermExtractionTests(unittest.TestCase):
         layout = Naive(80).format(extracted).layout()
         self.assertEqual(layout, "\n".join([
             "var x: Int = 0",
+            "", # newline separates let binding from its scope
             "x = 42",
             ""
         ]))
@@ -200,6 +201,7 @@ class TermExtractionTests(unittest.TestCase):
         self.assertEqual(layout, "\n".join([
             "var x: Int = 0",
             "var y: Boolean = false",
+            "", # newline separates let binding from its scope
             "x = 42",
             "y = true",
             ""

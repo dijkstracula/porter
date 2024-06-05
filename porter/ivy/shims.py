@@ -53,6 +53,17 @@ def binding_from_ivy_const(im: imod.Module, c: ilog.Const) -> Binding[sorts.Sort
     return Binding(name, sort)
 
 
+PARAM_PREFIX = "prm:"
+
+
+def param_from_ivy_const(im: imod.Module, c: ilog.Const) -> Binding[sorts.Sort]:
+    """A variation on binding_from_ivy_const: we give a special name to a parameter in order to ensure that
+    we copy the parameter out in order to avoid aliasing."""
+    name = PARAM_PREFIX + c.name
+    sort = sorts.from_ivy(im, c.sort)
+    return Binding(name, sort)
+
+
 # Expression conversion
 
 def maybe_field_access_from_apply(im: imod.Module, app: terms.Apply) -> Optional[terms.FieldAccess]:
@@ -329,6 +340,7 @@ def havok_from_ivy(im: imod.Module, iaction: iact.HavocAction) -> terms.Havok:
         modifies = [expr_from_ivy(im, m) for m in iaction.modifies()]
     return terms.Havok(iaction, modifies)
 
+
 def inits_from_ivy(im: imod.Module) -> list[terms.Action]:
     ret = []
     for ivy_act in im.initial_actions:
@@ -339,7 +351,8 @@ def inits_from_ivy(im: imod.Module) -> list[terms.Action]:
         else:
             ret.append(act)
     return ret
-            
+
+
 def local_from_ivy(im: imod.Module, iaction: iact.LocalAction) -> terms.Let:
     varnames = [binding_from_ivy_const(im, c) for c in iaction.args[:-1]]
     act = action_from_ivy(im, iaction.args[-1])
@@ -403,9 +416,29 @@ def action_kind_from_name(im: imod.Module, name: str) -> terms.ActionKind:
 def action_def_from_ivy(im: imod.Module, name: str, iaction: iact.Action) -> terms.ActionDefinition:
     kind = action_kind_from_name(im, name)
     assert (hasattr(iaction, "formal_params"))
-    formal_params = [binding_from_ivy_const(im, p) for p in iaction.formal_params]
+    formal_params = [param_from_ivy_const(im, p) for p in iaction.formal_params]
     formal_returns = [binding_from_ivy_const(im, p) for p in iaction.formal_returns]
     body = action_from_ivy(im, iaction)
+
+    # Before the body actually begins, weave in cloning calls in order to maintain pass-by-value semantics.
+    # (This also addresses extraction into Scala, where function parameters are immutable and assignments to
+    # them are a syntax error.)
+    local_redefs: list[Binding[sorts.Sort]] = [binding_from_ivy_const(im, p) for p in iaction.formal_params]
+
+    local_copying = []
+    for p in iaction.formal_params:
+        lhs = expr_from_const(im, p)
+        rhs = expr_from_const(im, p)
+        rhs.rep = PARAM_PREFIX + rhs.rep
+        local_copying.append(terms.Assign(None, lhs, rhs))
+
+    match body:
+        case terms.Let(ivy_node, vardecls, stmts):
+            stmts = terms.Sequence(ivy_node, local_copying + [stmts])
+            body = terms.Let(ivy_node, local_redefs + vardecls, stmts)
+        case terms.Action(ivy_node):
+            body = terms.Sequence(ivy_node, local_copying + [body])
+            body = terms.Let(ivy_node, local_redefs, body)
 
     return terms.ActionDefinition(iaction, kind, formal_params, formal_returns, body)
 
@@ -494,7 +527,7 @@ def program_from_ivy(im: imod.Module) -> terms.Program:
     defns = []
     for lf in im.definitions + im.native_definitions:
         name = lf.formula.defines().name
-        #if name == "<":  # HACK
+        # if name == "<":  # HACK
         #    continue
         if name in sorts.sorts_with_members(im):
             continue

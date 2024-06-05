@@ -3,14 +3,6 @@ from porter.ast.terms.visitor import MutVisitor
 
 from typing import Tuple
 
-def native_sort_converter(as_ivy: str) -> str:
-    """This is a wildly-annoying hack: for cases where we are extracting a generic
-    Java type from native code, we only have the string representation of the _ivy_
-    sort, not a Sort AST node.  So, in essence, we have to parse the string into
-    a Java type.  Hopefully there are not too many cases where this has to happen."""
-    match as_ivy:
-        case "uint[8]": return "Byte"
-        case sort: return sort
 
 # TODO: Will also need one for NativeTypes.
 class NativeRewriter(MutVisitor):

@@ -1,7 +1,8 @@
 from .quantifiers import iterate_through_varbounds
 from .sorts import *
-from .helpers import *
+from .helpers import commented, quoted
 
+from . import helpers as h
 from porter.ast import Binding, terms
 from porter.ast.sorts import Enum, Sort
 from porter.ast.terms.visitor import Visitor as TermVisitor
@@ -14,38 +15,32 @@ from typing import Optional
 
 class Extractor(TermVisitor[Doc]):
     def action_sig(self, name: str, decl: terms.ActionDefinition) -> Doc:
-        unboxed = UnboxedSort()
+        ub = UnboxedSort()
 
         if len(decl.formal_returns) > 1:
             raise Exception("TODO: I don't know how to handle tuples in return types yet")
         if len(decl.formal_returns) == 0:
             ret = Text("Unit")
         else:
-            ret = unboxed.visit_sort(decl.formal_returns[0].decl)
+            ret = ub.visit_sort(decl.formal_returns[0].decl)
 
-        param_docs = [self._identifier(b.name) + Text(": ") + unboxed.visit_sort(b.decl) for b in decl.formal_params]
-        return func_sig(self._identifier(name), param_docs, ret)
+        param_docs = [h.typeannot(self._identifier(b.name), ub.visit_sort(b.decl)) for b in decl.formal_params]
+        return h.func_sig(self._identifier(name), param_docs, ret)
 
     def action_body(self, defn: terms.ActionDefinition):
         body = self.visit_action(defn.body)
-        rets = defn.formal_returns
 
         ret: Optional[Binding[Sort]] = None
-        if len(rets) == 1:
-            ret = rets[0]
-        elif len(rets) > 1:
+        if len(defn.formal_returns) == 1:
+            ret = defn.formal_returns[0]
+        elif len(defn.formal_returns) > 1:
             raise Exception("TODO: multiple returns???")
-
-        retdecl = Nil()
-        if ret is not None:
-            if ret.name not in [b.name for b in defn.formal_params]:
-                retdecl = self.vardecl(ret) + Line()
 
         retstmt = Nil()
         if ret is not None:
             retstmt = self._identifier(ret.name)
 
-        return retdecl + body + Line() + retstmt
+        return body + Line() + retstmt
 
     def imported_action(self, name: str, defn: terms.ActionDefinition):
         assert defn.kind == terms.ActionKind.IMPORTED
@@ -63,21 +58,21 @@ class Extractor(TermVisitor[Doc]):
     # XXX: This is pretty similar to action_sig.
     def function_sig(self, name: str, decl: terms.FunctionDefinition) -> Doc:
         unboxed = UnboxedSort()
-        param_docs = [self._identifier(b.name) + Text(": ") + unboxed.visit_sort(b.decl) for b in decl.formal_params]
+        param_docs = [h.typeannot(self._identifier(b.name), unboxed.visit_sort(b.decl)) for b in decl.formal_params]
 
         ret_sort = decl.body.sort()
         assert ret_sort
         ret = unboxed.visit_sort(ret_sort)
 
-        return func_sig(self._identifier(name), param_docs, ret)
+        return h.func_sig(self._identifier(name), param_docs, ret)
 
     def export_action(self, action: Binding[terms.ActionDefinition]) -> Doc:
         arb_args = [ArbitraryGenerator("a").visit_sort(b.decl) for b in action.decl.formal_params]
         ret = Text("Unit") if len(action.decl.formal_returns) == 0 else BoxedSort().visit_sort(action.decl.formal_returns[0].decl)
 
         gen_args = [BoxedSort().visit_sort(b.decl) for b in action.decl.formal_params] + [ret]
-        tvars = helpers.typelist(gen_args)
-        args = helpers.arglist([
+        tvars = h.typelist(gen_args)
+        args = h.arglist([
             quoted(action.name),
             self._identifier(action.name),
             *arb_args
@@ -116,7 +111,7 @@ class Extractor(TermVisitor[Doc]):
         sort = UnboxedSort().visit_sort(binding.decl)
         init = DefaultValue().visit_sort(binding.decl)
 
-        return local_decl(var, sort, init, True)
+        return h.local_decl(var, sort, init, True)
 
     # Expressions
 
@@ -149,9 +144,9 @@ class Extractor(TermVisitor[Doc]):
     def _finish_binop(self, node: terms.BinOp, lhs_ret: Doc, rhs_ret: Doc):
         match node.op:
             case "and":
-                return helpers.binop(lhs_ret, "&&", rhs_ret)
+                return h.binop(lhs_ret, "&&", rhs_ret)
             case "or":
-                return helpers.binop(lhs_ret, "||", rhs_ret)
+                return h.binop(lhs_ret, "||", rhs_ret)
                 op = "||"
             case "+" | "-" | "*" | "/":
                 sort = node.sort()
@@ -170,9 +165,9 @@ class Extractor(TermVisitor[Doc]):
                                     hi + utils.padded("else") + saturated
                     return saturated
                 else:
-                    return helpers.binop(lhs_ret, node.op, rhs_ret)
+                    return h.binop(lhs_ret, node.op, rhs_ret)
             case op:
-                return helpers.binop(lhs_ret, op, rhs_ret)
+                return h.binop(lhs_ret, op, rhs_ret)
 
     def _finish_exists(self, node: terms.Exists, expr: Doc):
         bound_vars = bounds_for_exists(node)
@@ -218,7 +213,7 @@ class Extractor(TermVisitor[Doc]):
             pred + Text(")")
 
     def _finish_assign(self, act: terms.Assign, lhs: Doc, rhs: Doc):
-        return assign(lhs, rhs)
+        return h.assign(lhs, rhs)
 
     def _finish_assume(self, act: terms.Assume, pred: Doc):
         return Text("this.assume(") + pred + Text(")")
@@ -264,7 +259,7 @@ class Extractor(TermVisitor[Doc]):
 
     def _finish_let(self, act: terms.Let, scope: Doc):
         var_docs = [self.vardecl(b) for b in act.vardecls]
-        return sum(var_docs, start=Nil()) + scope
+        return sum(var_docs, start=Nil()) + Line() + scope
 
     def _finish_logical_assign(self, act: terms.LogicalAssign, relsym: Doc, args: list[Doc], assn: Doc):
         # Special case for when the logical assignment is to _every_ logical
@@ -299,9 +294,9 @@ class Extractor(TermVisitor[Doc]):
         sig = self.action_sig(name, defn)
         match defn.kind:
             case terms.ActionKind.IMPORTED:
-                return assign(sig, block(self.imported_action(name, defn)))
+                return h.assign(sig, block(self.imported_action(name, defn)))
             case _:
-                return assign(sig, block(self.action_body(defn)))
+                return h.assign(sig, block(self.action_body(defn)))
 
     def _finish_function_def(self,
                              name: str,
@@ -312,4 +307,4 @@ class Extractor(TermVisitor[Doc]):
         if isinstance(defn.body, terms.FieldAccess):
             pass
             # body = defn.body
-        return assign(sig, block(body))
+        return h.assign(sig, block(body))

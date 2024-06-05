@@ -30,10 +30,13 @@ def dotted(d1: Doc, d2: Doc):
     return join([d1, d2], ".")
 
 
-def enclosed(opened: str, d: Union[Doc, str], closed: str):
+def enclosed(opened: str, d: Union[Doc, str], closed: str, hardnl=False):
     if isinstance(d, str):
         d = Text(d)
 
     single_line = Text(opened) + d + Text(closed)
     multi_line = Text(opened) + Line() + Nest(4, d) + Line() + Text(closed)
-    return single_line | multi_line
+    if not hardnl:
+        return single_line | multi_line
+    else:
+        return multi_line

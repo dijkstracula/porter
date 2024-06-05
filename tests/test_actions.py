@@ -7,7 +7,7 @@ from typing import Tuple
 
 from porter.ast import sorts, terms
 
-from porter.ivy.shims import action_def_from_ivy, action_from_ivy
+from porter.ivy.shims import action_def_from_ivy, action_from_ivy, PARAM_PREFIX
 
 import unittest
 
@@ -27,14 +27,31 @@ class ActionTest(unittest.TestCase):
         action = "action inc(n: nat) returns (m: nat) = { m := n + 1 }"
         im, compiled = compile_action("inc", action)
         act = action_def_from_ivy(im, "inc", compiled)
-        self.assertEqual(act.formal_params, [porter.ast.Binding("fml:n", sorts.Number.nat_sort())])
+        self.assertEqual(act.formal_params, [porter.ast.Binding(PARAM_PREFIX + "fml:n", sorts.Number.nat_sort())])
         self.assertEqual(act.formal_returns, [porter.ast.Binding("fml:m", sorts.Number.nat_sort())])
 
+        # Body should be shaped like Let(fml:n, Sequence{ fml:n := porter_param:fml:n; fml:m := n + 1 })
         body = act.body
-        assert isinstance(body, terms.Assign)
-        assert isinstance(body.lhs, terms.Constant)
-        assert isinstance(body.rhs, terms.BinOp)
-        self.assertTrue(body.rhs.op, "+")
+
+        # Even though a nat is pass by value anyway, we copy it into a mutable local.
+        assert isinstance(body, terms.Let)
+        self.assertEqual(body.vardecls, [porter.ast.Binding("fml:n", sorts.Number.nat_sort())])
+
+        # The body of the let has two actions: one copies the param into the temporary and the other assigns to the ret
+        body = body.scope
+        assert isinstance(body, terms.Sequence)
+        assert len(body.stmts) == 2
+
+        stmt = body.stmts[0]
+        assert isinstance(stmt, terms.Assign)
+        assert isinstance(stmt.lhs, terms.Constant)
+        assert isinstance(stmt.rhs, terms.Constant)
+
+        stmt = body.stmts[1]
+        assert isinstance(stmt, terms.Assign)
+        assert isinstance(stmt.lhs, terms.Constant)
+        self.assertTrue(stmt.rhs.op, "+")
+        assert isinstance(stmt.rhs, terms.BinOp)
 
     def test_while_with_decreases(self):
         action = """action id(n: nat) returns (m: nat) = {

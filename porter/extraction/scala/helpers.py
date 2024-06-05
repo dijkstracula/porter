@@ -32,6 +32,10 @@ def arglist(params: list[Doc]) -> Doc:
     return utils.enclosed("(", utils.join(params), ")")
 
 
+def typeannot(name: str | Doc, sort: str | Doc) -> Doc:
+    return lift(name) + Text(": ") + lift(sort)
+
+
 def typelist(params: Doc | list[Doc]) -> Doc:
     if isinstance(params, list):
         return utils.enclosed("[", utils.join(params), "]")
@@ -64,14 +68,14 @@ def binop(lhs: Doc | str, op: Doc | str, rhs: Doc | str):
 def func_sig(name: Doc | str, params: list[Doc], ret: Optional[Doc | str]):
     sig = Text("def ") + lift(name) + arglist(params)
     if ret:
-        sig += Text(": ") + lift(ret)
+        sig = typeannot(sig, ret)
     return sig
 
 
 def local_decl(name: Doc | str, sort: Optional[Doc | str], init: Optional[Doc | str], mutable=False):
     doc = (Text("var ") if mutable else Text("val ")) + lift(name)
     if sort is not None:
-        doc += Text(": ") + lift(sort)
+        doc = typeannot(doc, sort)
     if init is not None:
-        doc = doc + utils.padded("=") + lift(init)
+        return assign(doc, init)
     return doc + Line()
